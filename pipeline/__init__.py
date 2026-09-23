@@ -23,7 +23,6 @@ from . import media
 from . import model
 from . import ordering
 from . import picture_dictionary
-from . import positions
 from . import preview
 from . import primary_sense
 from . import relations
@@ -56,7 +55,6 @@ __all__ = [
     'model',
     'ordering',
     'picture_dictionary',
-    'positions',
     'preview',
     'primary_sense',
     'relations',

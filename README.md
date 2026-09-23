@@ -232,8 +232,8 @@ done, running them against another language produces wrong cards rather than an 
 
 ## Licence and sources
 
-The code here is mine to publish; what it fetches is not. Every dictionary, corpus, graded list
-and image archive it queries has its own terms, and the media manifest records the licence and
-attribution for each picture because that cannot be recovered once the file is downloaded. One
-source — the Spanish visual dictionary — states no licence at all, so it is for personal use only.
-Check the terms before you publish a deck built with this.
+The code is MIT — see `LICENSE`. What it fetches is not covered by that. Every dictionary,
+corpus, graded list and image archive it queries has its own terms, and the media manifest
+records the licence and attribution for each picture, because that cannot be recovered once the
+file is downloaded. One source — the Spanish visual dictionary — states no licence at all, so it
+is for personal use only. Check the terms before you publish a deck built with this.
