@@ -1,0 +1,19 @@
+{{FrontSide}}
+<hr class="divider">
+<div class="inner">
+  {{#Pronunciation}}<div class="audio">{{Pronunciation}}</div>{{/Pronunciation}}
+  {{#Image}}<div class="image">{{Image}}</div>{{/Image}}
+  {{#Definition}}<div class="definition definition-lead">{{Definition}}</div>{{/Definition}}
+  <details class="native-check">
+    <summary>%%check_native%%</summary>
+    <div class="translation">{{TranslationNative}}</div>
+    {{#DefinitionNative}}<div class="definition"><span class="native">{{DefinitionNative}}</span></div>{{/DefinitionNative}}
+  </details>
+  {{#InflectionHtml}}<div class="section-label">%%forms%%</div><div class="inflection">{{InflectionHtml}}</div>{{/InflectionHtml}}
+  {{#ExamplesHtml}}<div class="section-label">%%examples%%</div>{{ExamplesHtml}}{{/ExamplesHtml}}
+  {{#SynonymsHtml}}<div class="section-label">%%synonyms%%</div><div class="relations">{{SynonymsHtml}}</div>{{/SynonymsHtml}}
+  {{#FigurativeHtml}}<div class="section-label">%%figurative%%</div><div class="relations figurative">{{FigurativeHtml}}</div>{{/FigurativeHtml}}
+  {{#AntonymsHtml}}<div class="section-label">%%antonyms%%</div><div class="relations antonyms">{{AntonymsHtml}}</div>{{/AntonymsHtml}}
+  {{#OtherSensesHtml}}<div class="section-label">%%senses%%</div><div class="relations senses">{{OtherSensesHtml}}</div>{{/OtherSensesHtml}}
+  <div class="meta">{{#PartOfSpeech}}<span class="badge">{{PartOfSpeech}}</span>{{/PartOfSpeech}}{{#Categories}}<span class="badge">{{Categories}}</span>{{/Categories}}</div>
+</div>

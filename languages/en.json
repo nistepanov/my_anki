@@ -1,0 +1,69 @@
+{
+  "dictionary": "wiktionary",
+  "deck_split": "cefr",
+  "articles": [
+    "to"
+  ],
+  "articles_note": "english glues no article to a headword, but the vocabulary list carries the infinitive marker on every verb, and a verb left carrying it is a verb no dictionary answers to",
+  "media": {
+    "image_providers": [
+      "source_backup",
+      "openverse",
+      "wikipedia"
+    ],
+    "audio_providers": [
+      "source_backup",
+      "wiktionary",
+      "synthesis"
+    ]
+  },
+  "audio_note": "the backup ships real recordings for most of the deck, so little reaches wiktionary and less still reaches synthesis",
+  "inflection_note": "english wiktionary states a verb's forms in its headword line rather than in a conjugation table, so the inflection stage has nothing to read and is left off",
+  "graded_lexicon": [
+    {
+      "name": "cefrj",
+      "format": "profile",
+      "cache": "cefrj.csv",
+      "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/master/cefrj-vocabulary-profile-1.5.csv"
+    },
+    {
+      "name": "octanove",
+      "format": "profile",
+      "cache": "octanove.csv",
+      "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/master/octanove-vocabulary-profile-c1c2-1.0.csv"
+    },
+    {
+      "name": "efllex",
+      "format": "cefrlex",
+      "cache": "efllex.tsv",
+      "url": "https://cental.uclouvain.be/cefrlex/static/resources/en/EFLLex.tsv",
+      "levels": [
+        "a1",
+        "a2",
+        "b1",
+        "b2",
+        "c1"
+      ],
+      "note": "records where a word appears in graded material, not where it is taught, and is keyed on the headword while cards are keyed on the sense — a floor, not a verdict"
+    }
+  ],
+  "deck": "English B2+",
+  "deck_note": "named for the levels it holds, since the finished ones live in their own deck",
+  "mastered_levels": [
+    "A1",
+    "A2",
+    "B1"
+  ],
+  "mastered_levels_note": "levels the learner has finished; their cards stay suspended, and re-levelling keeps refilling them, so they are hidden again after every push",
+  "mastered_deck": "English B1",
+  "mastered_deck_note": "finished levels live outside the main deck, so studying it only ever reaches the levels still being learned",
+  "card_templates": [
+    "recognition",
+    "context"
+  ],
+  "card_templates_note": "the learner already reads english, so producing a word from its meaning is not what the deck is for; a word is met either inside a sentence or on its own",
+  "superseded_cards": {
+    "context": "recognition"
+  },
+  "superseded_cards_note": "a word met inside a sentence has already been asked what it means, so the bare headword card stands down for it; a word with no sentence keeps it"
+}

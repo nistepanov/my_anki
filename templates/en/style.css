@@ -1,0 +1,44 @@
+/* English-only additions. The shared sheet is loaded first; these rules extend it and never
+   restate it, so a change to the common design still reaches this deck. */
+
+/* The prompt of a card that asks for the word rather than showing it. */
+.ask {
+  color: var(--faint);
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+  margin-bottom: 0.8rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* A definition doing the work a translation used to do carries the card, so it is set larger
+   and centred rather than tucked against the left rule. */
+.definition-lead, .definition-clue {
+  font-size: 1.1rem;
+  text-align: center;
+}
+.definition-clue { font-size: 0.95rem; }
+
+/* The native meaning is available but never volunteered: reaching for it is a choice the
+   learner makes, and one they notice themselves making. */
+.native-check { margin: 1.1rem 0; }
+.native-check > summary {
+  color: var(--faint);
+  cursor: pointer;
+  font-size: 0.8rem;
+  list-style: none;
+  text-align: center;
+}
+.native-check > summary::-webkit-details-marker { display: none; }
+.native-check > summary::after {
+  border-bottom: 1px dotted var(--line);
+  content: '';
+  display: block;
+  margin: 0.15rem auto 0;
+  width: 8rem;
+}
+.native-check[open] > summary { margin-bottom: 0.4rem; }
+
+.cue-meaning .cue-ipa { color: var(--muted); font-size: 0.9rem; }
+.cue-meaning .cue-ipa::before { content: "["; }
+.cue-meaning .cue-ipa::after { content: "]"; }

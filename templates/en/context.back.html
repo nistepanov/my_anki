@@ -1,0 +1,17 @@
+{{FrontSide}}
+<hr class="divider">
+<div class="inner">
+  <div class="cue-meaning">
+    <span class="cue-word">{{#Article}}<span class="article">{{Article}}</span>{{/Article}}{{Word}}</span>
+    {{#IPA}}<span class="cue-ipa">{{IPA}}</span>{{/IPA}}
+  </div>
+  {{#Pronunciation}}<div class="audio">{{Pronunciation}}</div>{{/Pronunciation}}
+  {{#Definition}}<div class="definition definition-lead">{{Definition}}</div>{{/Definition}}
+  <details class="native-check">
+    <summary>%%check_native%%</summary>
+    <div class="translation">{{TranslationNative}}</div>
+    {{#ContextGlossHtml}}<div class="sentence-gloss">{{ContextGlossHtml}}</div>{{/ContextGlossHtml}}
+  </details>
+  {{#SynonymsHtml}}<div class="section-label">%%synonyms%%</div><div class="relations">{{SynonymsHtml}}</div>{{/SynonymsHtml}}
+  {{#OtherSensesHtml}}<div class="section-label">%%senses%%</div><div class="relations senses">{{OtherSensesHtml}}</div>{{/OtherSensesHtml}}
+</div>

@@ -1,0 +1,237 @@
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --text: #1c1b19;
+  --muted: #716f6a;
+  --faint: #a3a09a;
+  --line: #e7e3dc;
+  --accent: #b0472c;
+  --masculine: #2f6f9f;
+  --feminine: #a8446b;
+  --chip: #f1eee8;
+  --early: #3f7d58;
+  --middling: #9a6a24;
+  --advanced: #9a4040;
+}
+
+.nightMode, .night_mode {
+  --bg: #17181a;
+  --surface: #1f2124;
+  --text: #e9e7e3;
+  --muted: #9d9a94;
+  --faint: #6f6c67;
+  --line: #32353a;
+  --accent: #e08163;
+  --masculine: #79b3dd;
+  --feminine: #dd8fae;
+  --chip: #292c30;
+  --early: #7fbf98;
+  --middling: #d9a862;
+  --advanced: #dd8f8f;
+}
+
+.card {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 20px;
+  line-height: 1.5;
+  padding: 1.25rem 1rem;
+  text-align: left;
+}
+
+.inner { margin: 0 auto; max-width: 34rem; }
+
+.headword {
+  font-size: clamp(1.9rem, 7vw, 2.6rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+.headword .article { color: var(--faint); font-weight: 400; margin-right: 0.3em; }
+.headword[data-gender="m"] .article { color: var(--masculine); }
+.headword[data-gender="f"] .article { color: var(--feminine); }
+
+.ipa {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+  text-align: center;
+}
+.ipa::before { content: "["; }
+.ipa::after { content: "]"; }
+
+.prompt {
+  font-size: clamp(1.5rem, 5.5vw, 2rem);
+  font-weight: 500;
+  text-align: center;
+}
+.hint { color: var(--faint); font-size: 0.8rem; margin-top: 0.4rem; text-align: center; }
+
+.divider { border: 0; border-top: 1px solid var(--line); margin: 1.25rem 0; }
+
+.audio { margin: 1rem 0; text-align: center; }
+/* Anki draws the replay button as an inline SVG and exposes only these three handles. Left at
+   its own size the button is below a comfortable tap target on a phone. */
+.replay-button svg { height: 44px; width: 44px; }
+.replay-button svg circle { fill: var(--accent); }
+.replay-button svg path { fill: var(--bg); stroke: var(--bg); }
+
+.image { margin: 1rem 0; text-align: center; }
+.image img { border-radius: 0.5rem; max-height: 220px; max-width: 100%; }
+
+.translation {
+  color: var(--accent);
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  text-align: center;
+}
+.prompt-pivot { color: var(--faint); font-size: 0.95rem; font-style: italic; margin-top: 0.25rem; text-align: center; }
+.translation-pivot { color: var(--muted); font-size: 0.95rem; font-weight: 400; }
+.translation-pivot::before { color: var(--line); content: '·'; margin: 0 0.45em; }
+
+.definition {
+  background: var(--surface);
+  border-left: 3px solid var(--line);
+  border-radius: 0 0.4rem 0.4rem 0;
+  font-size: 1rem;
+  margin: 1.1rem 0;
+  padding: 0.7rem 0.9rem;
+}
+
+.section-label {
+  color: var(--faint);
+  font-size: 0.7rem;
+  letter-spacing: 0.09em;
+  margin: 1.2rem 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.relations { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; }
+/* A related word can be a whole phrase, and its translation another one. Without wrapping inside
+   the pair the two run past the card's edge and into the neighbouring pair; without a mark between
+   them a multi-word phrase and its translation read as one run-on line. */
+.related { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0.3em; min-width: 0; }
+.related .term { font-size: 0.95rem; overflow-wrap: anywhere; }
+.related .gloss { color: var(--faint); font-size: 0.8rem; overflow-wrap: anywhere; }
+.related .gloss::before { color: var(--line); content: '\2014'; margin-right: 0.35em; }
+.relations.figurative .term { font-style: italic; }
+/* A sense is a meaning beside a whole sentence, so these pairs stack one per line instead of
+   flowing as chips the way single-word synonyms do. */
+.relations.senses { display: block; }
+.relations.senses .related { display: block; }
+.relations.senses .related + .related { margin-top: 0.3rem; }
+.relations.senses .gloss { font-style: italic; }
+
+.reveal { margin-top: 0.9rem; text-align: center; }
+/* Anki gives both the reveal link and the revealed text the same class, so they are told
+   apart by element rather than by class. */
+.reveal a.hint { border-bottom: 1px dotted var(--line); color: var(--faint); font-size: 0.8rem; text-decoration: none; }
+.reveal div.hint { color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.05rem; letter-spacing: 0.14em; }
+
+.inflection { margin-bottom: 0.9rem; }
+.paradigm { display: grid; gap: 0.25rem 0.6rem; grid-template-columns: repeat(3, 1fr); margin-bottom: 0.5rem; }
+.paradigm .tense, .principal .tense { color: var(--faint); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.paradigm .tense { grid-column: 1 / -1; }
+.paradigm .slot { display: flex; flex-direction: column; }
+.paradigm .pronoun { color: var(--faint); font-size: 0.65rem; }
+.paradigm .form { font-size: 0.9rem; }
+.principal { display: flex; align-items: baseline; gap: 0.5em; }
+.principal .tense { flex: 0 0 5.5em; }
+.principal .form { font-size: 0.9rem; }
+
+.example { margin-bottom: 0.75rem; }
+.example .target { font-size: 1rem; }
+.glosses { display: flex; flex-wrap: wrap; gap: 0 0.5em; }
+.definition .glosses { border-top: 1px solid var(--line); margin-top: 0.5rem; padding-top: 0.5rem; }
+.definition .native { color: var(--muted); font-size: 0.9rem; }
+.definition .pivot { color: var(--faint); font-size: 0.85rem; font-style: italic; }
+.definition .native + .pivot::before { color: var(--line); content: '·'; margin-right: 0.5em; }
+.example .native { color: var(--muted); font-size: 0.9rem; }
+.example .pivot { color: var(--faint); font-size: 0.85rem; font-style: italic; }
+/* A separator only where both glosses sit on the line; a lone gloss keeps a clean edge. */
+.example .native + .pivot::before { color: var(--line); content: '·'; margin-right: 0.5em; }
+
+.relations {
+  background: var(--chip);
+  border-radius: 0.4rem;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.7rem;
+}
+.relations.antonyms { color: var(--muted); }
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+/* Tinted text on the neutral chip rather than a saturated fill: the card is quiet and a row
+   of loud pills at the top would outweigh the word itself. */
+.badge {
+  background: var(--chip);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.22rem 0.6rem;
+  text-transform: uppercase;
+}
+.badge[hidden] { display: none; }
+.badge-cefr[data-level^="A"] { color: var(--early); }
+.badge-cefr[data-level^="B"] { color: var(--middling); }
+.badge-cefr[data-level^="C"] { color: var(--advanced); }
+.badge-maturity[data-state="new"] { color: var(--accent); }
+.badge-maturity[data-state="learning"] { color: var(--middling); }
+.badge-maturity[data-state="young"] { color: var(--muted); }
+.badge-maturity[data-state="mature"] { color: var(--early); }
+
+.meta {
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  gap: 0.5rem;
+  margin-top: 1.4rem;
+  padding-top: 0.7rem;
+}
+
+/* The sentence card. The highlight is the whole point of this template: it marks which word
+   is being tested, so the sentence can be skimmed instead of read word by word. */
+.sentence {
+  font-size: clamp(1.15rem, 4.5vw, 1.5rem);
+  line-height: 1.5;
+  text-align: center;
+}
+.sentence .cue {
+  color: var(--accent);
+  font-weight: 600;
+  /* Colour alone can fail — a colour-blind reader, a dim screen, a phone in night shift. */
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
+.sentence-gloss { font-size: 1rem; line-height: 1.45; text-align: center; }
+.sentence-gloss .native { color: var(--text); }
+.sentence-gloss .pivot { color: var(--faint); display: block; font-size: 0.85rem; font-style: italic; }
+
+/* The word itself, restated under the sentence — without it the card teaches the phrase. */
+.cue-meaning {
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.6em;
+  justify-content: center;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+}
+.cue-meaning .cue-word { color: var(--accent); font-size: 1.2rem; font-weight: 600; }
+.cue-meaning .cue-word .article { color: var(--faint); font-weight: 400; margin-right: 0.3em; }
+.cue-meaning .cue-translation { color: var(--muted); font-size: 1rem; }

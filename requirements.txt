@@ -1,0 +1,8 @@
+# Everything else the pipeline needs is in the standard library.
+#
+# anthropic is only for the unattended script that answers the model-backed stages through the
+# API; answering those task files by hand needs nothing installed.
+anthropic>=1.2
+# Frequency ranks: they order the queue inside a level, and decide which words a learner is
+# assumed to know already when a sentence is judged readable.
+wordfreq>=3.1

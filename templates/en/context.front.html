@@ -1,0 +1,12 @@
+{{#ContextHtml}}
+<div class="inner">
+  <div class="badges">
+    {{#CEFR}}<span class="badge badge-cefr" data-level="{{CEFR}}">{{CEFR}}</span>{{/CEFR}}
+    {{#FrequencyBand}}<span class="badge badge-freq">{{FrequencyBand}}</span>{{/FrequencyBand}}
+    <span class="badge badge-maturity" hidden></span>
+  </div>
+  <div class="sentence">{{ContextHtml}}</div>
+  <div class="ask">%%read_from_context%%</div>
+</div>
+<script>%%include:badges.js%%</script>
+{{/ContextHtml}}

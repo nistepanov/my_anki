@@ -1,0 +1,26 @@
+{
+  "deck_split": "cefr",
+  "dictionary": "wiktionary",
+  "wiktionary_section": "Deutsch",
+  "media": {
+    "image_providers": [],
+    "audio_providers": [
+      "wiktionary",
+      "synthesis"
+    ]
+  },
+  "image_note": "no curated picture source covers german, and a searched picture has to be looked at before it lands, so this deck's images come from the reviewed stage alone",
+  "audio_note": "the german wiktionary carries a community recording on most entries, filtered by the De- filename prefix so a neighbouring language's audio cannot arrive; anything left over is synthesised inside anki",
+  "inflection": {
+    "row_labels": {
+      "present": "Präsens",
+      "preterite": "Präteritum",
+      "perfect": "Perfekt",
+      "plural": "Plural",
+      "feminine": "feminin"
+    }
+  },
+  "inflection_note": "the official word list states a verb's principal parts and a noun's plural for every entry, so the forms are filled at import and the wiktionary table pass has nothing left to fetch — hence no rows are configured for it",
+  "level_note": "german is the first language here with an official machine-readable level: the goethe-institut publishes one word list per level and each is cumulative, so a word's level is read from which list first holds it rather than judged by the model. this replaces the graded lexicon, which has no german resource",
+  "graded_lexicon": []
+}

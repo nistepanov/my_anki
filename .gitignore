@@ -1,0 +1,28 @@
+# Everything generated. One directory per language; deleting it costs only a rebuild,
+# but the caches inside are what make a rebuild cheap.
+/data/
+
+# Raw imports: a vocabulary app's SQLite backup, an ebook. Large, and not ours to publish.
+*.backup
+/sources/*.epub
+
+# Local answers to the model-backed stages, and the log the cron script writes.
+/enrich.log
+/.enrich.lock
+
+# Rendered by pipeline.preview for looking at cards outside Anki.
+/card_preview.html
+
+# Python
+__pycache__/
+*.py[cod]
+/.venv/
+/venv/
+*.egg-info/
+
+# Editors and tooling
+/.idea/
+/.vscode/
+/.claude/
+/.audit/
+*.log

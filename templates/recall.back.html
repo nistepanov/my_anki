@@ -1,0 +1,11 @@
+{{FrontSide}}
+<hr class="divider">
+<div class="inner">
+  <div class="headword" data-gender="{{Gender}}">{{#Article}}<span class="article">{{Article}}</span>{{/Article}}{{Word}}</div>
+  {{#IPA}}<div class="ipa">{{IPA}}</div>{{/IPA}}
+  {{#Pronunciation}}<div class="audio">{{Pronunciation}}</div>{{/Pronunciation}}
+  {{#Definition}}<div class="definition">{{Definition}}
+    {{#DefinitionNative}}<div class="glosses"><span class="native">{{DefinitionNative}}</span>{{#DefinitionPivot}}<span class="pivot">{{DefinitionPivot}}</span>{{/DefinitionPivot}}</div>{{/DefinitionNative}}
+  </div>{{/Definition}}
+  {{#ExamplesHtml}}<div class="section-label">%%examples%%</div>{{ExamplesHtml}}{{/ExamplesHtml}}
+</div>

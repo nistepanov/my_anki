@@ -1,0 +1,78 @@
+{
+  "deck_split": "cefr",
+  "dictionary": "wiktionary",
+  "media": {
+    "image_providers": [
+      "source_backup",
+      "picture_dictionary"
+    ],
+    "audio_providers": [
+      "source_backup",
+      "picture_dictionary",
+      "wiktionary",
+      "dictionary",
+      "synthesis"
+    ],
+    "audio_dictionary_url": "https://audio1.spanishdict.com/audio?lang={code}&text={text}",
+    "picture_dictionary": {
+      "index_url": "https://superespanol.com/wp-json/wp/v2/pages?per_page=100&page={page}&_fields=slug,link",
+      "chapter_marker": "diccionario-espanol-audio",
+      "index_pages": 3
+    },
+    "image_note": "a searched picture has to be looked at before it lands, so openverse and wikipedia belong to the reviewed stage rather than this chain"
+  },
+  "dictionary_note": "rae is authoritative but capped at 100 requests/day on the free tier",
+  "audio_note": "wiktionary has real speakers but its media host refuses a normal pace; spanishdict answers for any input, so it is synthesis, not recordings",
+  "inflection": {
+    "part_of_speech": "verb",
+    "section": "Spanish",
+    "rows": [
+      "present",
+      "preterite",
+      "imperfect",
+      "future",
+      "gerund",
+      "past participle singular"
+    ],
+    "single_form_rows": [
+      "preterite",
+      "imperfect",
+      "future",
+      "gerund",
+      "past participle singular"
+    ],
+    "pronouns": [
+      "yo",
+      "tú",
+      "él",
+      "nos.",
+      "vos.",
+      "ellos"
+    ],
+    "row_labels": {
+      "present": "presente",
+      "preterite": "pretérito",
+      "imperfect": "imperfecto",
+      "future": "futuro",
+      "gerund": "gerundio",
+      "past participle singular": "participio"
+    }
+  },
+  "picture_dictionary_note": "a curated visual dictionary: one chosen photo and one recorded speaker per headword, covering a few hundred concrete nouns. no stated licence, so personal use only",
+  "graded_lexicon": [
+    {
+      "name": "elelex",
+      "format": "cefrlex",
+      "cache": "elelex.tsv",
+      "url": "https://cental.uclouvain.be/cefrlex/static/resources/es/ELELex.tsv",
+      "levels": [
+        "a1",
+        "a2",
+        "b1",
+        "b2",
+        "c1"
+      ],
+      "note": "records where a word appears in graded material, not where it is taught, and is keyed on the headword while cards are keyed on the sense — a floor, not a verdict"
+    }
+  ]
+}

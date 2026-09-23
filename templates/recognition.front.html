@@ -1,0 +1,10 @@
+<div class="inner">
+  <div class="badges">
+    {{#CEFR}}<span class="badge badge-cefr" data-level="{{CEFR}}">{{CEFR}}</span>{{/CEFR}}
+    {{#FrequencyBand}}<span class="badge badge-freq">{{FrequencyBand}}</span>{{/FrequencyBand}}
+    <span class="badge badge-maturity" hidden></span>
+  </div>
+  <div class="headword" data-gender="{{Gender}}">{{#Article}}<span class="article">{{Article}}</span>{{/Article}}{{Word}}</div>
+  {{#IPA}}<div class="ipa">{{IPA}}</div>{{/IPA}}
+</div>
+<script>%%include:badges.js%%</script>

@@ -1,0 +1,12 @@
+# Spanish words to add to the deck.
+#
+# One word per line. Everything after '#' on its own line is ignored, and so are blank lines.
+# Any of these shapes works — the more you give, the less has to be guessed later:
+#
+#   boca
+#   la boca
+#   la boca<TAB>рот
+#   la boca<TAB>рот<TAB>mouth
+#
+# Fields are separated by a real tab. The article is optional and gets split off on its own.
+# Adding a word that is already in the deck does nothing, so it is safe to leave old lines here.

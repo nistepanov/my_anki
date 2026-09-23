@@ -1,0 +1,21 @@
+{
+  "rename_note": "misspellings in the exported vocabulary list; the corrected spelling is what a dictionary, an image search and the learner all answer to",
+  "rename": {
+    "shorarly": "shortly",
+    "troughput": "throughput",
+    "summone": "summoned",
+    "striketrough": "strikethrough",
+    "encompasse": "encompass",
+    "entrech": "entrench",
+    "vometting": "vomiting",
+    "rejunivation": "rejuvenation",
+    "whatsover": "whatsoever",
+    "intermittenly": "intermittently"
+  },
+  "drop_note": "ragarding and accomodate are misspellings whose correct form the list already carries, so correcting them would only duplicate a card; retard is a slur and drilling it as neutral vocabulary teaches the learner to give offence",
+  "drop": [
+    "ragarding",
+    "accomodate",
+    "retard"
+  ]
+}

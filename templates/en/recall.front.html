@@ -1,0 +1,18 @@
+<div class="inner">
+  <div class="badges">
+    {{#CEFR}}<span class="badge badge-cefr" data-level="{{CEFR}}">{{CEFR}}</span>{{/CEFR}}
+    {{#FrequencyBand}}<span class="badge badge-freq">{{FrequencyBand}}</span>{{/FrequencyBand}}
+    <span class="badge badge-maturity" hidden></span>
+  </div>
+  <div class="ask">%%guess%%</div>
+  {{#Definition}}<div class="definition definition-lead">{{Definition}}</div>{{/Definition}}
+  {{^Definition}}<div class="prompt">{{TranslationNative}}</div>{{/Definition}}
+  {{#Image}}<div class="image">{{Image}}</div>{{/Image}}
+  {{#PartOfSpeech}}<div class="hint">{{PartOfSpeech}}</div>{{/PartOfSpeech}}
+  {{#Hint}}<div class="reveal">{{hint:Hint}}</div>{{/Hint}}
+  <details class="native-check">
+    <summary>%%check_native%%</summary>
+    <div class="translation">{{TranslationNative}}</div>
+  </details>
+</div>
+<script>%%include:badges.js%%</script>

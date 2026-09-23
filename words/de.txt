@@ -1,0 +1,16 @@
+# German words to add to the deck.
+#
+# The deck itself comes from the official Goethe-Institut word lists — run
+# `python -m pipeline.goethe --target de` for those. This file is for words you meet
+# yourself and want on top of them.
+#
+# One word per line. Everything after '#' on its own line is ignored, and so are blank lines.
+# Any of these shapes works — the more you give, the less has to be guessed later:
+#
+#   Haus
+#   das Haus
+#   das Haus<TAB>дом
+#   das Haus<TAB>дом<TAB>house
+#
+# Fields are separated by a real tab. The article is optional and gets split off on its own.
+# Adding a word that is already in the deck does nothing, so it is safe to leave old lines here.
