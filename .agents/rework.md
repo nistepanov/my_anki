@@ -1,8 +1,13 @@
 # Reworking the English deck
 
 An agreed plan. The parts marked done are built; each moves into the pipeline brief as that brief
-is next revised, and this file shrinks by the same amount. Written for English, but nothing in it
-is English-specific except where it says so.
+is next revised, and this file shrinks by the same amount.
+
+Nothing in the *reasoning* here is English-specific. The code that implemented it largely is: the
+stages built from this plan carry English endings, English function words and English column
+names written inline rather than taken from the language config. That was not a decision, it was
+inattention — one deck was the only deck being looked at. The pipeline brief lists the damage under
+adapting to another language. Read that before reusing any of this on a second language.
 
 Two complaints started it. Synonyms on a card often belong to a different meaning of the
 headword. And the deck asked the learner to produce a word from its definition, which is a

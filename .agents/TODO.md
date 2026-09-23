@@ -32,6 +32,26 @@ the fact, taking them from the deck's own configuration. Worth knowing before st
 request is part of the cache key, so changing it invalidates every cached corpus lookup for the
 decks that already exist and they pay for the fetch again.
 
+## Move the language facts out of the stages that hold them
+
+The item above is one case of a wider one. Three stages that run on every deck — card folding,
+context-sentence choice, related-word pruning — each carry one language's endings and one
+language's function words as a list written beside the code. On another language they do not
+fail. They fold apart cards that should stand and pass sentences the learner cannot read, and
+nothing reports it, because plausible output is what they are built to produce.
+
+So this ranks above anything that improves a single card: it is the difference between a second
+deck being work and a second deck being wrong. The fix is mechanical — the config already carries
+the roles and the language facts these stages need, and moving a list from code to config is one
+edit each. What needs deciding is only where a list of function words belongs, since it is the
+first per-language fact that is neither derivable from the code nor small enough to sit beside
+the articles.
+
+Two stages assume the learner's own language in the same way, and are the same size of fix: the
+other-meanings merge reads its answers under a fixed key, and the media filenames transliterate
+one alphabet. The book importer is a separate case — it is single-language from end to end, and
+nothing else depends on it, so it can stay that way until a second language wants it.
+
 ## Which prepositions a word takes
 
 Knowing a word without knowing that it demands a particular preposition means building the

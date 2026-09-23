@@ -1,8 +1,8 @@
 # Vocabulary → Anki pipeline
 
 Turns a personal word list in a foreign language into finished Anki cards: rich, consistent,
-and safe to regenerate. Written for Spanish first, but every stage is language-agnostic except
-where this document says otherwise.
+and safe to regenerate. Written for Spanish first. Every stage is meant to be language-agnostic;
+the ones that are not are named at the end, under adapting to another language.
 
 ## What a finished card holds
 
@@ -474,3 +474,38 @@ What has to be re-chosen per language:
 
 Nothing in the pipeline may assume a source app exists at all. A bare list of words has to be a
 valid starting point, because for most languages that is all there will be.
+
+### Where the rule has actually been broken
+
+The stages above hold to it. The ones added later, while reworking one deck, do not — they were
+written straight against that deck, and running them on another language produces wrong cards
+rather than an error, which is the worst of the three possible outcomes.
+
+Four kinds of breakage, worth telling apart because only the first is acceptable:
+
+- **A stage that exists for one language and nothing depends on.** The exam board's word list
+  reader is the only one. Another language simply never runs it, and that is the plug-in rule
+  working as intended.
+- **The learner's own language assumed.** The corpus lookup filters the translations it got back
+  against fixed language codes, so a corpus answering in the right language still has every
+  sentence thrown away — and it reads as "the corpus is empty", not as a bug. The other-meanings
+  merge reads its answers under a fixed key. The media filenames transliterate one alphabet and
+  one set of accents.
+- **The language being learned assumed, in a whole stage.** The book importer, from its alphabet
+  to its suffix rules to its column names. Nothing else depends on it, so it is a stage that
+  quietly only works for one deck rather than a pipeline that breaks.
+- **The language being learned assumed, inside a shared stage.** This is the one that will bite.
+  Card folding and context-sentence choice both carry one language's suffix rules and one
+  language's function words, and sense pruning carries one language's filler words. They run on
+  every deck, and on the wrong language they do not fail — they fold apart cards that should
+  stand, and pass sentences a learner cannot read.
+
+The common cause is the same each time: a list of words or endings that belongs to a language was
+written where the code lives instead of where the language's facts live. The config already
+carries the roles these stages need, so none of this is hard to move; it was simply never moved,
+because one deck was the only deck being looked at.
+
+The lesson for the next stage: a stage that needs to know *something about a language* — its
+function words, its endings, how its words are written — is a stage that needs a config entry.
+A literal list inside the stage means the stage has silently become single-language, and because
+these stages produce plausible output on the wrong language, nothing will report it.
