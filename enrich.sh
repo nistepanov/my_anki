@@ -7,7 +7,7 @@
 # person's decision, and a cron job cannot make it.
 #
 #   crontab -e
-#   17 * * * * /home/nistepanov/PycharmProjects/my_anki/enrich.sh
+#   17 * * * * /path/to/my_anki/enrich.sh
 #
 # Needs ANTHROPIC_API_KEY. Reads MODEL and BATCH from the environment if you want to override.
 
