@@ -84,8 +84,11 @@ The words in a book you are actually reading are better than any list, and a phr
 wrote beats an invented example:
 
 ```
-python -m pipeline.book_import tasks --target en --epub sources/some-book.epub
-python -m pipeline.book_import rows  --target en --subdeck 'Some Book'
+python -m pipeline.book_import tasks --target en --directory data/en/book_80_days \
+    --epub sources/around-the-world-in-80-days.epub
+# answer each task_NN.json into an answer_NN.json beside it, then:
+python -m pipeline.book_import rows  --target en --directory data/en/book_80_days \
+    --subdeck 'Around the World in 80 Days'
 ```
 
 It keeps only the words the frequency table says you do not know yet, each on a phrase from the
@@ -156,36 +159,118 @@ the repository, and neither are the raw imports.
 
 ## Running one stage on its own
 
-Every stage is a module you can run alone while working on it. `--target` is always required.
+Every stage is a module you can run alone while working on it. All of them take `--target` — it is
+required and has no default — and `--native`, which defaults to `ru`. Many take `--limit N`, to work
+on the first few rows while you are still checking what a stage does. The stages that rewrite rows
+without asking anybody first take `--dry-run`, which prints the change and writes nothing.
 
-| | |
-|---|---|
-| `pipeline.wordlist` | read the hand-kept list into the table |
-| `pipeline.dictionaries` | definitions, synonyms, antonyms, corpus sentences |
-| `pipeline.sense_choice` | which sense of a new word its card teaches |
-| `pipeline.model` | the fields no dictionary publishes, and simpler wording |
-| `pipeline.translations` | fill the missing example translations |
-| `pipeline.relations` | sort the synonyms and gloss them |
-| `pipeline.senses` | the headword's other meanings |
-| `pipeline.inflections` | a verb's forms from the Wiktionary conjugation table |
-| `pipeline.transcription` | the phonetic transcription |
-| `pipeline.frequency` | the frequency band |
-| `pipeline.graded_lexicon` | the level, from a published graded list |
-| `pipeline.context_cards` | pick the sentence a context card is built on |
-| `pipeline.media` | recordings and pictures from curated sources |
-| `pipeline.images` | pictures that need looking at before they land |
-| `pipeline.anki` | push the notes |
-| `pipeline.ordering` | order the new-card queue by frequency |
-| `pipeline.mastered` | suspend the levels you have finished |
-| `pipeline.preview` | render cards to a local HTML file |
+The commands below use `--target en`; swap the code for another deck.
 
-Repair stages, for problems found after the fact: `pipeline.duplicates` folds together cards that
-teach one word twice, `pipeline.sense_pruning` takes off the related words belonging to another
-meaning, `pipeline.primary_sense` asks a reviewer whether a card teaches the sense a learner meets
-first.
+### The table the stages pass along
 
-Most of these take `--dry-run`, and the ones that need judgement take `--plan` to write task files
-and `--from-json` to merge the answers.
+Three files under `data/<target>/`, each stage reading one and writing the next or itself:
+
+| | written by | holds |
+|---|---|---|
+| `words.tsv` | whatever brought the words in | one row per word, most cells empty |
+| `enriched.tsv` | the dictionary stage | the same rows with what a dictionary could answer |
+| `cards.tsv` | the model stage, then everything after it | the finished rows the Anki push reads |
+
+A stage never drops a column it does not know about, so running them out of order costs a rerun
+rather than data.
+
+### Getting words in
+
+```
+# the list you keep by hand — this is what build.py calls
+python -m pipeline.wordlist words/en.txt --target en
+
+# an exam board's published list, German only
+python -m pipeline.goethe --target de
+
+# a vocabulary app's SQLite backup
+python -m pipeline.reword sources/my.backup --target es
+
+# a book you are reading: words you do not know yet, each on a phrase from the book
+python -m pipeline.book_import tasks --target en --directory data/en/book_x --epub sources/book.epub
+# answer each task_NN.json into an answer_NN.json beside it, then:
+python -m pipeline.book_import rows --target en --directory data/en/book_x --subdeck 'Book X'
+```
+
+The book importer keeps its questions in its own format and writes no instructions file, so the
+script that answers task files cannot read them — they are answered in a session or by hand. Every
+other stage below uses the shared format.
+
+### Filling a card from published data
+
+Free, deterministic, no model. Each caches its own lookups, so a rerun costs nothing for the rows
+already done.
+
+```
+python -m pipeline.dictionaries --target en   # definitions, synonyms, antonyms, corpus sentences
+python -m pipeline.frequency --target en      # the frequency band
+python -m pipeline.graded_lexicon --target en # the CEFR level, from a published graded list
+python -m pipeline.transcription --target en  # the phonetic transcription
+python -m pipeline.inflections --target es    # a verb's forms, from the conjugation table
+python -m pipeline.context_cards --target en  # which sentence a context card is built on
+```
+
+Add `--refresh` to `dictionaries` or `frequency` to redo rows that are already filled.
+
+### The stages that ask a question
+
+These cannot finish on their own. Each writes numbered task files with an `INSTRUCTIONS.md` beside
+them, waits for `answer-NN.json` files, and merges those back. Always three steps:
+
+```
+python -m pipeline.model --target en --plan                     # write the questions
+python -m pipeline.llm data/en/llm --batch                      # answer them through the API
+python -m pipeline.model --target en --from-json data/en/llm     # merge the answers
+```
+
+`--slices N` splits the questions into more, smaller files. The same three steps work for:
+
+| stage | asks for | task directory |
+|---|---|---|
+| `pipeline.sense_choice` | which sense a new word's card teaches | `data/en/sense_choice` |
+| `pipeline.model` | the fields no dictionary publishes, and simpler wording | `data/en/llm` |
+| `pipeline.translations` | the missing example translations | `data/en/examples` |
+| `pipeline.relations` | synonyms sorted and glossed | `data/en/relations` |
+| `pipeline.senses` | the headword's other meanings | `data/en/senses` |
+| `pipeline.primary_sense` | whether a card teaches the sense met first | `data/en/primary_sense` |
+
+**Empty a task directory before planning a new round.** The merge reads every answer file it finds,
+so answers to a question no longer being asked get applied again — and the correction you were
+making is what gets reverted. Numbering does not save you: a smaller second round leaves the
+higher-numbered files of the first one in place and they merge alongside the new ones.
+
+`pipeline.llm` takes a directory, not a `--target`. `--batch` submits everything as one batch at
+half price, answered whenever the service gets to it; without it, questions go chunk by chunk and
+answer sooner. `./enrich.sh` runs the three stages the build waits on in this way, for a crontab.
+
+### Pictures and recordings
+
+```
+python -m pipeline.media --target en              # the curated provider chain
+python -m pipeline.media --target en --only audio  # or --only image
+python -m pipeline.reword_media sources/my.backup --target es  # media out of the app's backup
+```
+
+A searched picture takes four steps, because somebody has to look at it:
+
+```
+python -m pipeline.images --target en --plan-queries                       # ask for search phrases
+python -m pipeline.llm data/en/image_queries --batch                       # the model answers those
+python -m pipeline.images --target en --plan --queries-from data/en/image_queries
+# now look at the candidates under data/en/candidates/ and write the answer files
+python -m pipeline.images --target en --from-json data/en/image_review
+```
+
+Only the query step can go through `pipeline.llm`. Choosing among candidates means looking at
+pictures, which the text API cannot do, so that answer comes from a session or from you.
+`--retry-rejected` searches again for words a reviewer turned down, which is worth doing after
+adding a provider. To check the pictures already on cards: `--audit`, then `--audit-from
+data/en/image_audit`.
 
 ### A searched picture is looked at before it lands
 
@@ -198,6 +283,34 @@ That split is deliberate and not a convenience. The moment two paths can write t
 cell, the cheap one silently undoes the careful one: a media run here re-pictured the very words a
 review had twice cleared as unpicturable. A language with no curated image source simply has an
 empty chain, and every picture comes through review.
+
+### Repairing what is already built
+
+```
+python -m pipeline.duplicates --target en --dry-run     # fold cards that teach one word twice
+python -m pipeline.sense_pruning --target en --dry-run  # drop related words of another meaning
+```
+
+Both print what they would do and change nothing until you drop `--dry-run`. Nothing is deleted: a
+folded row stays and records which card it went into, so a bad fold is found by reading a column.
+
+### Into Anki
+
+Anki has to be running for all of these.
+
+```
+python -m pipeline.anki --target en                  # push the notes
+python -m pipeline.anki --target en --design-only    # only refresh templates and styling
+python -m pipeline.anki --target en --replace-media  # let the manifest overwrite media
+python -m pipeline.ordering --target en              # order the new-card queue by frequency
+python -m pipeline.mastered --target en              # suspend the levels you have finished
+```
+
+`--url` points at a different AnkiConnect endpoint. To see a card without Anki at all:
+
+```
+python -m pipeline.preview --target en --word resilience
+```
 
 ## Language support
 
