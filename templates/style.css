@@ -235,3 +235,11 @@
 .cue-meaning .cue-word { color: var(--accent); font-size: 1.2rem; font-weight: 600; }
 .cue-meaning .cue-word .article { color: var(--faint); font-weight: 400; margin-right: 0.3em; }
 .cue-meaning .cue-translation { color: var(--muted); font-size: 1rem; }
+
+/* Text in the reader's own language, which may run right to left while the headword beside it
+   runs left to right. Letting each block take its direction from its own first letter keeps
+   punctuation and alignment where a reader of that script expects them, and costs nothing for a
+   language that runs the same way as the rest of the card. */
+.translation, .prompt, .cue-translation, .sentence-gloss, .native, .gloss {
+  unicode-bidi: plaintext;
+}

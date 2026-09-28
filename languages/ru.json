@@ -1,0 +1,14 @@
+{
+  "deck_split": "cefr",
+  "dictionary": "wiktionary",
+  "media": {
+    "image_providers": [],
+    "audio_providers": [
+      "wiktionary",
+      "synthesis"
+    ]
+  },
+  "image_note": "no curated picture source covers russian, so every picture comes through the reviewed stage",
+  "graded_lexicon": [],
+  "level_note": "no published graded word list for russian, so a word's level stays a model judgement anchored on corpus frequency and should be called approximate"
+}
