@@ -14,7 +14,9 @@ import typing
 from . import language_config
 from . import anki
 
-CONDITIONAL_PATTERN = re.compile(r'\{\{#(\w+)\}\}(.*?)\{\{/\1\}\}', re.DOTALL)
+CONDITIONAL_PATTERN = re.compile(r'\{\{([#^])(\w+)\}\}(.*?)\{\{/\2\}\}', re.DOTALL)
+# A section keeps its body when the field is filled; the other marker keeps it when empty.
+FILLED_SECTION_MARKER = '#'
 FIELD_PATTERN = re.compile(r'\{\{(?:(\w+):)?(\w+)\}\}')
 # Anki turns a hint into a link plus the text it reveals; the revealed state is the one
 # worth looking at, so the preview shows both at once.
@@ -54,13 +56,23 @@ class TemplateRenderer:
         rendered = template
         while True:
             resolved = CONDITIONAL_PATTERN.sub(
-                lambda match: match.group(2) if fields.get(match.group(1)) else '',
-                rendered,
+                lambda match: cls._section(match=match, fields=fields), rendered,
             )
             if resolved == rendered:
                 break
             rendered = resolved
         return FIELD_PATTERN.sub(lambda match: cls._field(match=match, fields=fields), rendered)
+
+    @staticmethod
+    def _section(*, match: re.Match, fields: typing.Dict[str, str]) -> str:
+        """A card that falls back to another field when one is empty needs both forms rendered.
+
+        Leaving the negated form out does not drop the fallback, it prints the markup around it.
+        """
+        marker, name, body = match.group(1), match.group(2), match.group(3)
+        filled = bool(fields.get(name))
+        keep = filled if marker == FILLED_SECTION_MARKER else not filled
+        return body if keep else ''
 
     @staticmethod
     def _field(*, match: re.Match, fields: typing.Dict[str, str]) -> str:
