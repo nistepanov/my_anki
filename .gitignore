@@ -11,7 +11,7 @@
 /.enrich.lock
 
 # Rendered by pipeline.preview for looking at cards outside Anki.
-/card_preview.html
+/card_preview*.html
 
 # Python
 __pycache__/
