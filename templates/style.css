@@ -240,6 +240,7 @@
    runs left to right. Letting each block take its direction from its own first letter keeps
    punctuation and alignment where a reader of that script expects them, and costs nothing for a
    language that runs the same way as the rest of the card. */
-.translation, .prompt, .cue-translation, .sentence-gloss, .native, .gloss {
+.translation, .prompt, .cue-translation, .sentence-gloss, .native, .gloss,
+.section-label, .ask, .badge-maturity {
   unicode-bidi: plaintext;
 }

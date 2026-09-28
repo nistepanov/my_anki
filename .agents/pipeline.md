@@ -568,9 +568,25 @@ A level a prompt needs is derived from the levels marked finished rather than wr
 
 Only entry points, and only the optional ones. The exam board's word list reader is for one
 language by nature. The book importer and the vocabulary-app backup importer are written through
-and through for one pair — their alphabets, their endings, their column names, their
-transliteration. Nothing depends on any of them: they are ways for words to get *in*, and a plain
-list of words is always a valid way in, so another language loses nothing but the shortcut.
+and through for one pair — their alphabets, their endings, their column names. Nothing depends on
+any of them: they are ways for words to get *in*, and a plain list of words is always a valid way
+in, so another language loses nothing but the shortcut.
+
+One more of these was found by rendering a card for a reader of a right-to-left script, and it is
+worth the telling because it hid in a place nobody would look for a language assumption. **A
+filename built from a key carries the key's languages.** The key ends in a gloss in the reader's
+own language, and making it filesystem-safe meant transliterating it — with a table that described
+two scripts. For a third script the gloss contributed nothing at all, so two senses of one headword
+asked for the same file. That one failed loudly, because a guard checks the names are distinct
+before anything is fetched, and the lesson is the guard rather than the table: the table will always
+be missing a script, so what saves the run is refusing to proceed on a clash, and what fixes it is
+giving such a key a short tail derived from the key itself rather than describing one more alphabet.
+
+The same render showed the other half of reading right to left: the text was correct and sat in
+blocks laid out for the other direction. Every block that holds the reader's own language now takes
+its direction from its own first letter, which costs nothing for a reader whose language runs the
+same way as the card. Easy to half-do — the translations were covered and the section headings and
+the card's own question were not, which is exactly the part a reader looks at first.
 
 One gap degrades rather than breaks: card section headings exist for a handful of reader languages
 and fall back to English for the rest. A card in the wrong language for its headings is readable;

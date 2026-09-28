@@ -16,6 +16,7 @@ front of a headword — is taken from the exporter rather than restated here.
 """
 
 import argparse
+import hashlib
 import pathlib
 import re
 import sqlite3
@@ -37,10 +38,15 @@ CYRILLIC_TRANSLITERATION = {
 # (e.g. que/qué, como/cómo), so folding the accent away entirely would collide them.
 LATIN_ACCENT_TRANSLITERATION = {
     'á': 'aa', 'é': 'ee', 'í': 'ii', 'ó': 'oo', 'ú': 'uu', 'ñ': 'nn', 'ü': 'uu',
+    # Spelled out rather than dropped, which is what stripping accents does to it.
+    'ß': 'ss',
 }
 TRANSLITERATION = {**CYRILLIC_TRANSLITERATION, **LATIN_ACCENT_TRANSLITERATION}
 SLUG_COLLAPSE_PATTERN = re.compile(r'[^a-z0-9]+')
 SLUG_MAX_LENGTH = 80
+# Appended when a key holds letters no table above describes. Six hex digits keep a filename
+# readable and still make a clash between two keys of one deck vanishingly unlikely.
+FINGERPRINT_LENGTH = 6
 
 JPEG_EXTENSION = 'jpg'
 PNG_EXTENSION = 'png'
@@ -124,7 +130,34 @@ class Slugger:
     def slug(cls, *, key: str, language_code: str) -> str:
         collapsed = SLUG_COLLAPSE_PATTERN.sub('-', cls.transliterate(key)).strip('-')
         trimmed = collapsed[:SLUG_MAX_LENGTH].strip('-')
-        return f'{language_code}-{trimmed}'
+        return f'{language_code}-{trimmed}{cls._fingerprint(key=key)}'
+
+    @classmethod
+    def _fingerprint(cls, *, key: str) -> str:
+        """A short tail for a key whose script no transliteration table here describes.
+
+        Without it such a key keeps only its readable half, and the gloss that tells two senses of
+        one headword apart contributes nothing — so both senses ask for the same filename and the
+        whole media run stops on the clash.
+        """
+        if not cls._drops_undescribed_letters(text=key):
+            return ''
+        digest = hashlib.sha256(key.encode('utf-8')).hexdigest()
+        return f'-{digest[:FINGERPRINT_LENGTH]}'
+
+    @staticmethod
+    def _drops_undescribed_letters(*, text: str) -> bool:
+        """Whether a letter vanishes because nothing here says what to do with it.
+
+        A table that maps a letter to nothing is not a loss: a soft sign carries no sound and is
+        meant to go. A letter absent from every table is a script nobody described.
+        """
+        for character in text.lower():
+            if not character.isalpha() or character in TRANSLITERATION:
+                continue
+            if not unicodedata.normalize('NFKD', character).encode('ascii', 'ignore'):
+                return True
+        return False
 
     @staticmethod
     def assert_unique(*, slugs_by_key: typing.Dict[str, str]) -> None:

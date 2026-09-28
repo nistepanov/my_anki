@@ -401,8 +401,16 @@ Two entry points, both optional and neither depended on by anything:
   run it, which is the plug-in rule working.
 - The **book importer** and the **vocabulary-app backup importer** are written for English and
   Russian throughout — English endings and alphabet, the `to` infinitive marker, fixed column
-  names, and a transliteration table covering only Cyrillic and Spanish accents. They are how
-  words get *in*, so another language uses the plain word list instead and loses nothing else.
+  names. They are how words get *in*, so another language uses the plain word list instead and
+  loses nothing else.
+
+Media filenames used to belong here too. A filename is built from the card's key, which carries a
+gloss in your own language, and the table that made it filesystem-safe knew Cyrillic and Spanish
+accents only — so for any other script the gloss contributed nothing, two senses of one headword
+asked for the same file, and the media run stopped on the clash. A key whose script the table does
+not describe now gets a short tail from the key itself. Arabic, Hebrew, Greek and Japanese glosses
+were checked; no existing English or Spanish filename moved, and the twenty-one German ones that
+did were corrections.
 
 And one gap that degrades rather than breaks: card section headings exist for Russian, English,
 Polish and Arabic readers. Another reader gets them in English until a set is added beside those.
