@@ -3,11 +3,16 @@
 An agreed plan. The parts marked done are built; each moves into the pipeline brief as that brief
 is next revised, and this file shrinks by the same amount.
 
-Nothing in the *reasoning* here is English-specific. The code that implemented it largely is: the
-stages built from this plan carry English endings, English function words and English column
-names written inline rather than taken from the language config. That was not a decision, it was
-inattention — one deck was the only deck being looked at. The pipeline brief lists the damage under
-adapting to another language. Read that before reusing any of this on a second language.
+Nothing in the *reasoning* here is English-specific, and the code that implemented it was — the
+stages built from this plan carried English endings, English function words and English column
+names written beside the code rather than beside the language's other facts. That was not a
+decision, it was inattention: one deck was the only deck being looked at.
+
+Those stages have since been parameterised, and the two importers this plan added have not. What
+the repair found, including three failures that produced confident wrong cards rather than errors,
+is written up in the pipeline brief under adapting to another language. Read it before reusing any
+of this on a second language — not for the list of what was wrong, but for the shapes those
+mistakes take.
 
 Two complaints started it. Synonyms on a card often belong to a different meaning of the
 headword. And the deck asked the learner to produce a word from its definition, which is a

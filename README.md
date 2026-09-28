@@ -9,8 +9,9 @@ word means, a published graded word list decides how hard it is, and a frequency
 which words you meet first. A model is asked only for what nobody publishes: restating a dense
 definition in simple words, and translating.
 
-Three decks run on it today — English, Spanish, German. The first one built was Spanish, and the
-code shows it in a few places; [Language support](#language-support) says exactly where.
+Four decks run on it today — English, Spanish, German, Russian. Nothing in the stages names a
+language: what differs between two decks is a small config file, and
+[Adding a language](#adding-a-language) is the whole procedure.
 
 ## What you need
 
@@ -29,15 +30,18 @@ Write the words into `words/<language>.txt`, one per line, then run:
 python build.py --target en --native ru
 ```
 
-`--target` is the language you are learning, `--native` your own. Both are two-letter codes.
-`--native` defaults to Russian, which is the only thing in the defaults that assumes anything
-about you.
+`--target` is the language whose cards are being built, `--native` your own — the one the cards
+are glossed into. Both are two-letter codes. They default to `en` and `ru`, so a bare
+`python build.py` builds English for a Russian speaker. Naming the same language twice is refused
+rather than building a deck that glosses words into themselves.
 
 The build runs the stages in order and each one skips what is already done, so a run after adding
 five words does five words of work. Nothing is thrown away and nothing already paid for is
 recomputed. A word already in the deck is ignored, so old lines can stay in the file.
 
-Useful flags: `--skip-media` leaves pictures and recordings alone, `--no-push` stops before Anki.
+Useful flags: `--images` also looks for pictures, which is off by default because most words do
+not want one and the lookup is the slowest part of a run; `--skip-media` leaves recordings alone
+too; `--no-push` stops before Anki.
 
 ### The build will stop and wait for you
 
@@ -92,7 +96,7 @@ python -m pipeline.book_import rows  --target en --directory data/en/book_80_day
 ```
 
 It keeps only the words the frequency table says you do not know yet, each on a phrase from the
-book. This one is English-only for now — see [Language support](#language-support).
+book. This one is English-only for now — see [Adding a language](#adding-a-language).
 
 ## What a card holds
 
@@ -146,7 +150,7 @@ leaves the deck. `--design-only` pushes edited templates and styling without tou
 | | |
 |---|---|
 | `words/` | the lists you keep by hand — the only files you edit |
-| `languages/` | one small config per language: dictionaries, media sources, card types, decks |
+| `languages/` | one config per language, plus one per learner of it — see [Adding a language](#adding-a-language) |
 | `templates/` | how a card looks; `templates/<code>/` overrides one deck's design |
 | `sources/` | raw imports, such as a vocabulary app's backup or an ebook |
 | `pipeline/` | the stages |
@@ -250,8 +254,10 @@ answer sooner. `./enrich.sh` runs the three stages the build waits on in this wa
 
 ### Pictures and recordings
 
+The build fetches recordings only. Pictures are a separate ask — `build.py --images`, or here:
+
 ```
-python -m pipeline.media --target en              # the curated provider chain
+python -m pipeline.media --target en               # recordings and curated pictures
 python -m pipeline.media --target en --only audio  # or --only image
 python -m pipeline.reword_media sources/my.backup --target es  # media out of the app's backup
 ```
@@ -312,36 +318,94 @@ python -m pipeline.mastered --target en              # suspend the levels you ha
 python -m pipeline.preview --target en --word resilience
 ```
 
-## Language support
+## Adding a language
 
-The design rule is that no stage names a language. Roles — the language being learned, your own,
-and English as a pivot for image search — are substituted from `pipeline/language_config.py` and
-from `languages/<code>.json`, and the table's column names are rendered from the same place. Most
-of the pipeline holds to that. Some of it does not, and the honest list is:
+No stage names a language. What differs between two decks is a config file, and most of a config
+file is optional — a language with no file at all still builds, from what its two-letter code
+implies: its Wiktionary edition, its Wikipedia, its corpus code, its articles, and a recording
+provider. So start by running it and see what comes out.
 
-**Only ever going to work for one language, by design.** The Goethe-Institut importer reads the
-German exam board's PDFs. Nothing depends on it, so another language just does not run it.
+```
+python build.py --target pl --native ru --no-push --skip-media
+```
 
-**Assumes your own language is Russian.** The sentence corpus lookup filters translations by fixed
-language codes, so a corpus that answers in the right language is still thrown away — German came
-back glossed in French and Dutch and every sentence was dropped, which reads as "the corpus has
-nothing". The other-meanings merge reads its answers under a fixed Russian key. The media file
-names transliterate Cyrillic and Spanish accents only.
+Then fix what the run tells you. Two files matter.
 
-**Assumes the language you are learning is English.** The book importer, throughout: English
-suffix rules, an English-only alphabet, English function words, the `to` infinitive marker, fixed
-Russian and English column names, and English-only frequency lookups. Card-folding and context-card
-choice both carry English suffix rules and English function words. Sense pruning carries English
-filler words.
+### `languages/<target>.json` — facts about the language
 
-**Assumes the language you are learning is Spanish.** The reviewer-facing sense check writes
-Spanish into its prompt instead of substituting it. The visual dictionary provider matches a
-Spanish marker in the page.
+One key per thing the code cannot derive. Every key is optional; look at `en.json`, `es.json`,
+`de.json` and `ru.json` for worked examples, and at the `*_note` keys beside them, which record
+why each value is what it is.
 
-The pattern behind the list: the original pipeline was parameterised from the start, and the
-stages added later while reworking one deck were written straight against that deck. None of them
-is hard to parameterise — the config already carries everything they need — but until that is
-done, running them against another language produces wrong cards rather than an error.
+| | |
+|---|---|
+| `wiktionary_host` | a different edition, when the language's own has no dialect described |
+| `wiktionary_section` | how that edition names this language in its own headings |
+| `articles` | the articles to split off a headword, so cards can drill them separately |
+| `graded_lexicon` | published word lists stating a CEFR level, where any exist |
+| `media` | which picture and recording providers to use, best first |
+| `inflection` | which rows of a conjugation table reach the card, and their labels |
+| `grammar_words` | words a learner reads without being taught them |
+| `filler_words` | words every definition reaches for, whatever it defines |
+| `inflection_endings` | endings a reader passes straight through, as `[ending, replacement]` |
+| `definition_openers` | phrases a definition wears only to announce a part of speech |
+| `participle_suffix` | the ending a noun's definition uses where a verb's uses the stem |
+
+The last five are what keep the shared stages honest. A language that states none of them is
+matched on the written form: fewer sentences qualify, fewer cards fold together, and nothing is
+accepted wrongly. Leaving them out is a safe start, not a bug — and the fallback for the two word
+lists is the language's commonest words from a frequency table, which is rougher in both
+directions, so they are worth writing for a deck you care about.
+
+### `languages/<target>.<native>.json` — facts about one learner
+
+How far along *you* are is not a fact about the language, and it must not be, or the next learner
+of the same language inherits your deck. So it lives in its own file, keyed on both codes, and it
+is merged over the language's own.
+
+| | |
+|---|---|
+| `deck` | what your deck is called in Anki |
+| `mastered_deck` | a separate top-level deck for the levels you have finished |
+| `mastered_levels` | those levels; their cards are suspended, never deleted |
+| `card_templates` | which kinds of card you still need |
+| `superseded_cards` | which card stands down for which, where both could be built |
+
+`en.ru.json` is the worked example: a reader who already knows English up to B1 and has no use for
+the card that asks them to produce a word.
+
+### What each new language actually costs
+
+Expect to spend the effort on four things, in this order:
+
+1. **The dictionary.** A language whose own Wiktionary edition has no dialect described will say
+   so and stop, by name. Do not route around it by reading a third edition: an edition written in
+   another language translates foreign words rather than defining them, so the card's definition
+   comes back as a one-word gloss and the whole premise — that a dictionary decides meaning —
+   is gone. Describing an edition is bounded work: an edition either marks a sense in the line
+   itself, or writes every list the same way and says what the list is in the heading above it.
+2. **The CEFR level.** Look for an official graded word list before settling for a judgement;
+   where none exists the level is the model's guess anchored on frequency, and should be called
+   approximate.
+3. **The corpus.** Translation coverage into your own language is usually far thinner than into
+   English. Check before relying on it — a corpus with plenty of sentences and none translated
+   reads exactly like a corpus with nothing.
+4. **The word lists above.** Write them once the deck exists and you can see which sentences it
+   is letting through.
+
+### What is still tied to one language
+
+Two entry points, both optional and neither depended on by anything:
+
+- The **exam board importer** reads the German exam board's PDFs. Another language simply does not
+  run it, which is the plug-in rule working.
+- The **book importer** and the **vocabulary-app backup importer** are written for English and
+  Russian throughout — English endings and alphabet, the `to` infinitive marker, fixed column
+  names, and a transliteration table covering only Cyrillic and Spanish accents. They are how
+  words get *in*, so another language uses the plain word list instead and loses nothing else.
+
+And one gap that degrades rather than breaks: card section headings exist for Russian, English,
+Polish and Arabic readers. Another reader gets them in English until a set is added beside those.
 
 ## Licence and sources
 

@@ -16,41 +16,31 @@ gerund and the participle — is what a learner actually reaches for.
 Nouns and adjectives have their own inflection and the same argument applies to them, but the
 verb is where the gap hurts, so it goes first.
 
-## Corpus sentences come back glossed in the wrong languages
+## Corpus sentences come back glossed in the wrong languages — half done
 
-The sentence corpus is asked for a language's sentences but never told which translations are
-wanted, so it returns whatever a contributor happened to write. The filter that picks the useful
-ones then looks for two fixed language codes, which were chosen when only one deck existed.
+The filter half is fixed: the translations a card keeps are now matched on the role they fill, so a
+sentence glossed in a neighbouring language is dropped instead of being written into the column the
+card labels as the reader's own. That was not a gap but a mislabel, and it was reaching cards.
 
-For a language whose contributors translate mostly into their neighbours, that means the corpus
-answers with plenty of sentences and none of them usable: German came back glossed in French and
-Dutch, and every sentence was dropped. It reads as "the corpus has nothing", which is the opposite
-of true.
+What is left is the coverage half. The corpus is still asked for a language's sentences without
+being told which translations are wanted, so it answers with whatever its contributors happened to
+write and the useful ones are picked out afterwards. Stating the wanted languages in the request
+would raise coverage rather than correctness. Worth knowing before starting: the request is part of
+the cache key, so changing it makes every deck pay for its corpus lookups again.
 
-The fix is to state the wanted translation languages in the request rather than filtering after
-the fact, taking them from the deck's own configuration. Worth knowing before starting: the
-request is part of the cache key, so changing it invalidates every cached corpus lookup for the
-decks that already exist and they pay for the fetch again.
+## Language facts moved out of the stages — done
 
-## Move the language facts out of the stages that hold them
+The endings, grammar words, filler words and definition openers the shared stages carried now come
+from the language's own config, and a language that states none is matched on the written form. The
+prompts no longer name a language or a learner's level. The learner's own progress moved into a file
+of its own, keyed on both languages, so the next learner of a language does not inherit the first
+one's deck.
 
-The item above is one case of a wider one. Three stages that run on every deck — card folding,
-context-sentence choice, related-word pruning — each carry one language's endings and one
-language's function words as a list written beside the code. On another language they do not
-fail. They fold apart cards that should stand and pass sentences the learner cannot read, and
-nothing reports it, because plausible output is what they are built to produce.
-
-So this ranks above anything that improves a single card: it is the difference between a second
-deck being work and a second deck being wrong. The fix is mechanical — the config already carries
-the roles and the language facts these stages need, and moving a list from code to config is one
-edit each. What needs deciding is only where a list of function words belongs, since it is the
-first per-language fact that is neither derivable from the code nor small enough to sit beside
-the articles.
-
-Two stages assume the learner's own language in the same way, and are the same size of fix: the
-other-meanings merge reads its answers under a fixed key, and the media filenames transliterate
-one alphabet. The book importer is a separate case — it is single-language from end to end, and
-nothing else depends on it, so it can stay that way until a second language wants it.
+The reasoning, and the three failures that were worse than a wrong answer, are written up in the
+pipeline brief under adapting to another language. Two things left undone on purpose: the book
+importer and the vocabulary-app backup importer stay single-language, because nothing depends on
+them and a plain word list is always a valid way in; and card section headings cover four reader
+languages and fall back to English for the rest.
 
 ## Which prepositions a word takes
 

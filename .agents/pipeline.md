@@ -1,8 +1,9 @@
 # Vocabulary → Anki pipeline
 
 Turns a personal word list in a foreign language into finished Anki cards: rich, consistent,
-and safe to regenerate. Written for Spanish first. Every stage is meant to be language-agnostic;
-the ones that are not are named at the end, under adapting to another language.
+and safe to regenerate. Written for Spanish first and since run on three more languages. No stage
+names a language; what a language needs of its own is named at the end, under adapting to another
+language, together with what running an unfamiliar pair found.
 
 ## What a finished card holds
 
@@ -247,6 +248,11 @@ answers apply to the wrong sentences.
 Pronunciation and images, collected before the import so they land with the notes rather than
 needing a second pass over the deck.
 
+**Pronunciation is the default and a picture is asked for.** Every word wants a recording and most
+words want no picture — the word names nothing anyone could photograph, and the lookup is the
+slowest thing in a run. Making pictures the default spends the longest part of every build on the
+answer "none of these mean the word".
+
 This stage is a **chain of providers in priority order**, declared per language in its config, all
 writing into one directory and one manifest keyed by the card key. Each provider fills only the
 cells still empty, so adding a provider later tops up the gaps without disturbing what is already
@@ -475,37 +481,97 @@ What has to be re-chosen per language:
 Nothing in the pipeline may assume a source app exists at all. A bare list of words has to be a
 valid starting point, because for most languages that is all there will be.
 
-### Where the rule has actually been broken
+### What running a second and a third language taught
 
-The stages above hold to it. The ones added later, while reworking one deck, do not — they were
-written straight against that deck, and running them on another language produces wrong cards
-rather than an error, which is the worst of the three possible outcomes.
+The rule was stated from the start and the stages added later quietly broke it. Building ten cards
+for a reader of another language, and then ten cards of another target language, found every break
+in an afternoon — and none of them by failing. Every stage ran and reported success.
 
-Four kinds of breakage, worth telling apart because only the first is acceptable:
+That is the finding worth keeping: **a stage that holds a fact about one language does not break on
+another language, it answers wrongly.** Nothing reports it, because plausible output is what these
+stages are built to produce. Running one small deck in an unfamiliar pair is therefore the only
+test that finds them, and it is cheap.
 
-- **A stage that exists for one language and nothing depends on.** The exam board's word list
-  reader is the only one. Another language simply never runs it, and that is the plug-in rule
-  working as intended.
-- **The learner's own language assumed.** The corpus lookup filters the translations it got back
-  against fixed language codes, so a corpus answering in the right language still has every
-  sentence thrown away — and it reads as "the corpus is empty", not as a bug. The other-meanings
-  merge reads its answers under a fixed key. The media filenames transliterate one alphabet and
-  one set of accents.
-- **The language being learned assumed, in a whole stage.** The book importer, from its alphabet
-  to its suffix rules to its column names. Nothing else depends on it, so it is a stage that
-  quietly only works for one deck rather than a pipeline that breaks.
-- **The language being learned assumed, inside a shared stage.** This is the one that will bite.
-  Card folding and context-sentence choice both carry one language's suffix rules and one
-  language's function words, and sense pruning carries one language's filler words. They run on
-  every deck, and on the wrong language they do not fail — they fold apart cards that should
-  stand, and pass sentences a learner cannot read.
+Three failures were worse than a wrong answer, and each has a general shape.
 
-The common cause is the same each time: a list of words or endings that belongs to a language was
-written where the code lives instead of where the language's facts live. The config already
-carries the roles these stages need, so none of this is hard to move; it was simply never moved,
-because one deck was the only deck being looked at.
+**A reduction that loses everything compares as a perfect match.** Folding two cards that teach one
+meaning worked by stripping a definition down to the letters it recognised. For a script it did not
+list, that is no letters at all — and the standard string comparison calls two empty strings
+identical. So the deck did not fold a few cards wrongly; every card matched every other. Whenever a
+comparison runs on normalised text, the empty result is not a value — it means the comparison had
+nothing to work with, and it has to be answered with "unlike", never with the number the library
+returns.
 
-The lesson for the next stage: a stage that needs to know *something about a language* — its
-function words, its endings, how its words are written — is a stage that needs a config entry.
-A literal list inside the stage means the stage has silently become single-language, and because
-these stages produce plausible output on the wrong language, nothing will report it.
+**Filtering an answer after the fact is not the same as asking the right question.** The corpus was
+asked for a language's sentences and its translations were then filtered against two fixed codes.
+On a deck those codes did not match, every sentence was dropped and the result read as "the corpus
+has nothing" — the opposite of true. Worse, on a deck where one code happened to match the wrong
+role, the column a card labels as the reader's own language filled with a third language's text.
+A filter keyed on anything but the role is a silent mislabel waiting for its deck.
+
+**A cache keyed on less than its input serves the wrong answer.** Dictionary entries were cached
+per word, not per edition, so pointing a deck at a different edition returned the stored markup of
+the previous one. The stage that refuses to read an edition it has no dialect for is loud and
+correct, and the cache walked straight past it: no error, no definitions, a finished-looking deck.
+A cache key has to carry every input that changes how the stored value is read, and an entry stored
+before a key grew has to be treated as a miss.
+
+Two smaller lessons came with them. Unwrapping markup in one pass leaves whatever wrapped
+something else, and the stage downstream throws away what still carries markup — so the loss shows
+up as missing content, not as visible debris. And an edition written in a *third* language looks
+like a free way past a missing dialect and is a trap: such an edition translates foreign words
+rather than defining them, so the card's definition arrives as a one-word gloss and the founding
+rule — a dictionary decides meaning — is quietly gone.
+
+### Where a language's own facts belong
+
+The cause was the same every time: a list of words, endings or phrases that belongs to one language
+was written beside the code instead of beside that language's other facts. So the test for a new
+stage is simple. If it needs to know *something about a language* — which of its words carry no
+meaning, which endings a reader passes through, how a definition of it is usually phrased — that
+knowledge is a config entry, and a literal list in the stage means the stage has silently become
+single-language.
+
+Two things make this safe to get wrong at first.
+
+**A language that states nothing must still build.** Every one of these entries is optional, and
+without them a stage falls back to matching the written form: fewer sentences qualify, fewer cards
+fold, and nothing is accepted wrongly. Degrading towards doing less is what lets a new language
+start on the day it is added rather than after its lists are written.
+
+**Frequency is a fallback for a stated list, not a replacement.** The commonest words of a language
+are mostly its grammar, which is tempting: one frequency table covers every language for free. It
+is not the same list, measurably. Swapping a hand-written English list for the top of the frequency
+table cost the existing deck a few hundred sentence cards, because a frequency table counts plain
+vocabulary — the words for a day, a person, to know — as grammar, while missing modals and
+relatives that carry no meaning at all. Errors in both directions, neither visible. So the derived
+list is what a language gets before anyone writes its own, and a deck that matters gets a written
+one.
+
+Also worth separating: two lists that overlap almost completely can still answer two questions. The
+words that add nothing to a *sentence* and the words every *definition* reaches for are nearly the
+same set and not the same set, and merging them moved cards in a deck that was supposed to stand
+still.
+
+### A learner's progress is not a fact about the language
+
+One config file per language held both what the language is and how far one learner had got: which
+levels they had finished, what their decks were called, which cards they still needed. The second
+learner of that language inherits all of it — a beginner gets the advanced deck's name, their first
+three levels suspended before they start, and the card that would have taught them missing. The
+level even reached a prompt, telling the model to pitch its answers at a learner who did not exist.
+
+So the two are separate files, merged in order, and the learner's one is keyed on both languages.
+A level a prompt needs is derived from the levels marked finished rather than written down twice.
+
+### What is still tied to one language
+
+Only entry points, and only the optional ones. The exam board's word list reader is for one
+language by nature. The book importer and the vocabulary-app backup importer are written through
+and through for one pair — their alphabets, their endings, their column names, their
+transliteration. Nothing depends on any of them: they are ways for words to get *in*, and a plain
+list of words is always a valid way in, so another language loses nothing but the shortcut.
+
+One gap degrades rather than breaks: card section headings exist for a handful of reader languages
+and fall back to English for the rest. A card in the wrong language for its headings is readable;
+a card teaching the wrong thing is not, which is the right order to fix them in.
