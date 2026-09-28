@@ -29,6 +29,7 @@ WORDLIST_DIRECTORY = 'words'
 WORDS_FILE = 'words.tsv'
 ENRICHED_FILE = 'enriched.tsv'
 CARDS_FILE = 'cards.tsv'
+AUDIO_ONLY = 'audio'
 
 
 class Stage(typing.NamedTuple):
@@ -43,10 +44,13 @@ class Stage(typing.NamedTuple):
 class DeckBuild:
     """Runs the stages in order, each one picking up what the previous left."""
 
-    def __init__(self, *, language: language_config.LanguageConfig, root: pathlib.Path):
+    def __init__(
+        self, *, language: language_config.LanguageConfig, root: pathlib.Path, with_images: bool = False,
+    ):
         self._language = language
         self._root = root
         self._data = language.data_directory(root=root)
+        self._with_images = with_images
 
     @property
     def wordlist_path(self) -> pathlib.Path:
@@ -98,7 +102,11 @@ class DeckBuild:
             dictionaries.main_for(language=self._language, root=self._root)
             rows = self._read(name=WORDS_FILE)
         built_keys = {row['key'] for row in self._read(name=CARDS_FILE)}
-        cache = dictionaries.Cache(root=self._data / dictionaries.CACHE_DIRECTORY_NAME, refresh=False)
+        cache = dictionaries.Cache(
+            root=self._data / dictionaries.CACHE_DIRECTORY_NAME,
+            refresh=False,
+            edition=self._language.wiktionary_host,
+        )
         choice = sense_choice.SenseChoice(language=self._language, cache=cache)
         pending = len(choice.build(rows=rows, built_keys=built_keys))
         if pending:
@@ -150,7 +158,11 @@ class DeckBuild:
         )
 
     def gather_media(self) -> Stage:
-        media.main_for(language=self._language, root=self._root)
+        """Pronunciation always, pictures only when asked: most decks want the sound and not the
+        pictures, and an image lookup is the slowest part of a run."""
+        media.main_for(
+            language=self._language, root=self._root, only=None if self._with_images else AUDIO_ONLY,
+        )
         manifest = language_config.TsvFile.read(self._data / media.MANIFEST_FILENAME)
         with_audio = sum(1 for row in manifest if row.get('audio'))
         return Stage(name='media', done=with_audio, pending=0)
@@ -181,7 +193,11 @@ class DeckBuild:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        '--skip-media', action='store_true', help="Leave images and pronunciation alone this run",
+        '--skip-media', action='store_true', help="Leave pronunciation and pictures alone this run",
+    )
+    parser.add_argument(
+        '--images', action='store_true',
+        help="Also look for pictures; off by default, since most words do not want one",
     )
     parser.add_argument(
         '--no-push', action='store_true', help="Stop before sending anything to Anki",
@@ -191,7 +207,7 @@ def main() -> None:
 
     root = language_config.PROJECT_ROOT
     language = language_config.language_from(arguments, root=root)
-    build = DeckBuild(language=language, root=root)
+    build = DeckBuild(language=language, root=root, with_images=arguments.images)
 
     steps = [build.collect_words, build.enrich_from_dictionaries, build.choose_senses,
              build.enrich_with_model, build.complete_translations]

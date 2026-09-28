@@ -47,7 +47,7 @@ INPUT_FILENAME = 'enriched.tsv'
 OUTPUT_FILENAME = 'cards.tsv'
 CACHE_DIRECTORY = 'cache'
 
-SYSTEM_PROMPT_TEMPLATE = """You are a lexicographer building {target} flashcards for a {native}-speaking learner.
+SYSTEM_PROMPT_TEMPLATE = """You are a lexicographer building {target} flashcards for a learner who speaks {native}.
 
 For every word you are given, produce:
 

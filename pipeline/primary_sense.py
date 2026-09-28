@@ -38,7 +38,7 @@ MINIMUM_CANDIDATES = 2
 
 INSTRUCTIONS_TEMPLATE = """# Choosing the sense a learner meets first
 
-Each row names a Spanish word, the sense its card currently teaches, and every sense the
+Each row names a word in {target}, the sense its card currently teaches, and every sense the
 dictionary lists for that headword.
 
 Decide one thing: is the sense the card teaches the one a learner of this word meets first?
@@ -55,12 +55,12 @@ wedge instead of the food.
 Write `answer-NN.json` next to the task file, `NN` matching the task file's number:
 
 ```json
-{"rows": [
-  {"key": "<copied verbatim>", "verdict": "keep"},
-  {"key": "<copied verbatim>", "verdict": "replace", "sense": 3,
-   "definition_es": "Hoja pequeña de cartulina o plástico que lleva datos.",
-   "translation_ru": "карточка"}
-]}
+{{"rows": [
+  {{"key": "<copied verbatim>", "verdict": "keep"}},
+  {{"key": "<copied verbatim>", "verdict": "replace", "sense": 3,
+   "definition": "<one plain sentence in {target}>",
+   "translation": "<one to three words in {native}>"}}
+]}}
 ```
 
 One row per row in your task file, no omissions.
@@ -70,17 +70,17 @@ One row per row in your task file, no omissions.
 `keep` when the current sense is the everyday one. Most rows are `keep` — the first sense is
 often right, and replacing a sound card is worse than leaving it.
 
-`replace` when a clearly commoner sense is in the list. Give its `number`, a `definition_es` and
-a `translation_ru`.
+`replace` when a clearly commoner sense is in the list. Give its `number`, a `definition` and
+a `translation`.
 
 Ask which sense a beginner meets in ordinary speech, not which is oldest or most precise. A
 sense marked for a trade, a sport, a science or one country is rarely the first one met.
 
-`definition_es` is yours to write, not to copy: one plain Spanish sentence a beginner could read,
+`definition` is yours to write, not to copy: one plain sentence in {target} a beginner could read,
 describing the thing itself. Do not reuse the dictionary's wording, which assumes the reader
 already knows the word. No examples, no synonym lists.
 
-`translation_ru` is one to three Russian words, comma-separated, for that sense only.
+`translation` is one to three words in {native}, comma-separated, for that sense only.
 
 If no sense in the list is the everyday one — the word is a proper noun, regional slang, or the
 dictionary simply lacks the common meaning — answer `keep` and add `"why": "<short reason>"`.
@@ -88,8 +88,8 @@ dictionary simply lacks the common meaning — answer `keep` and add `"why": "<s
 ## Verifying
 
 Before finishing, check with Python that the file parses, every `key` matches your task file
-verbatim, every row is answered, and every `replace` row carries a non-empty `definition_es` and
-`translation_ru`. Report how many you kept and how many you replaced.
+verbatim, every row is answered, and every `replace` row carries a non-empty `definition` and
+`translation`. Report how many you kept and how many you replaced.
 """ + tasks.INCREMENTAL_SAVING
 
 
@@ -132,12 +132,12 @@ class PrimarySensePlan:
             if answer is None:
                 merged.append(row)
                 continue
-            definition_es = str(answer.get('definition_es', '')).strip()
-            translation_ru = str(answer.get('translation_ru', '')).strip()
-            if answer.get('verdict') == 'replace' and definition_es and translation_ru:
+            definition = str(answer.get('definition', '')).strip()
+            translation = str(answer.get('translation', '')).strip()
+            if answer.get('verdict') == 'replace' and definition and translation:
                 updated = dict(row)
-                updated[self._language.definition_column] = definition_es
-                updated[self._language.translations_native_column] = translation_ru
+                updated[self._language.definition_column] = definition
+                updated[self._language.translations_native_column] = translation
                 # Everything downstream was written to show the sense being replaced: the
                 # translations of the definition, and the example sentences that illustrate it.
                 # Left alone they would argue with the card they sit on.
@@ -161,7 +161,13 @@ class TaskFiles:
     """Task and answer files on disk, one slice per worker."""
 
     @staticmethod
-    def write(*, tasks: typing.List[dict], directory: pathlib.Path, slices: int) -> typing.List[pathlib.Path]:
+    def write(
+        *,
+        tasks: typing.List[dict],
+        directory: pathlib.Path,
+        slices: int,
+        language: language_config.LanguageConfig,
+    ) -> typing.List[pathlib.Path]:
         directory.mkdir(parents=True, exist_ok=True)
         size = -(-len(tasks) // slices) if tasks else 0
         written = []
@@ -172,7 +178,10 @@ class TaskFiles:
             path = directory / f'task-{index + 1:02d}{ANSWER_SUFFIX}'
             path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, indent=1), encoding='utf-8')
             written.append(path)
-        (directory / INSTRUCTIONS_FILE).write_text(INSTRUCTIONS_TEMPLATE, encoding='utf-8')
+        (directory / INSTRUCTIONS_FILE).write_text(
+            INSTRUCTIONS_TEMPLATE.format(target=language.target_name, native=language.native_name),
+            encoding='utf-8',
+        )
         return written
 
     @staticmethod
@@ -200,7 +209,11 @@ def main_for(
     rows = language_config.TsvFile.read(cards_path)
     if limit is not None:
         rows = rows[:limit]
-    cache = dictionaries.Cache(root=data_directory / dictionaries.CACHE_DIRECTORY_NAME, refresh=False)
+    cache = dictionaries.Cache(
+        root=data_directory / dictionaries.CACHE_DIRECTORY_NAME,
+        refresh=False,
+        edition=language.wiktionary_host,
+    )
     primary_sense_plan = PrimarySensePlan(language=language, cache=cache)
 
     if plan:
@@ -209,7 +222,7 @@ def main_for(
             print("no word has two or more candidate senses to choose the primary one from")
             return
         directory = data_directory / TASK_DIRECTORY
-        written = TaskFiles.write(tasks=built, directory=directory, slices=slices)
+        written = TaskFiles.write(tasks=built, directory=directory, slices=slices, language=language)
         print(f"{len(built)} words have more than one candidate sense; wrote {len(written)} task files to {directory}")
         return
 

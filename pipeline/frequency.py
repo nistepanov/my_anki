@@ -41,6 +41,29 @@ BAND_BOUNDARIES = (
 MAX_DISAGREEMENT_EXAMPLES = 5
 
 
+def grammar_words(*, language: language_config.LanguageConfig) -> typing.FrozenSet[str]:
+    """The words that hold a sentence together without adding to what it says."""
+    return _stated_or_commonest(stated=language.grammar_words, language=language)
+
+
+def filler_words(*, language: language_config.LanguageConfig) -> typing.FrozenSet[str]:
+    """The words every definition reaches for, whatever meaning it defines."""
+    return _stated_or_commonest(stated=language.filler_words, language=language)
+
+
+def _stated_or_commonest(
+    *, stated: typing.Sequence[str], language: language_config.LanguageConfig,
+) -> typing.FrozenSet[str]:
+    """A language that lists its own words is taken at its word; otherwise frequency stands in.
+
+    The fallback is rougher in both directions — it counts plain vocabulary as grammar and misses
+    words that carry none — which is why a list is worth writing for a deck that matters.
+    """
+    if stated:
+        return frozenset(stated)
+    return frozenset(wordfreq.top_n_list(language.target, language.frequent_word_count))
+
+
 class FrequencyBands:
     """Rank and Zipf-score lookups built once from wordfreq's corpus for one language."""
 

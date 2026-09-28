@@ -59,7 +59,11 @@ def main_for(
         print("every card already carries a transcription")
         return
 
-    cache = dictionaries.Cache(root=data_directory / dictionaries.CACHE_DIRECTORY_NAME, refresh=False)
+    cache = dictionaries.Cache(
+        root=data_directory / dictionaries.CACHE_DIRECTORY_NAME,
+        refresh=False,
+        edition=language.wiktionary_host,
+    )
     stats = dictionaries.Stats()
     lemmas = [row['word'].strip().lower() for row in pending]
     dictionaries.WiktionaryClient.fetch_many(lemmas=lemmas, cache=cache, language=language, stats=stats)

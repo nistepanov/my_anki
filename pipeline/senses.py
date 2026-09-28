@@ -48,7 +48,8 @@ Write `answer-NN.json` next to the task file, `NN` matching the task file's numb
 
 ```json
 {{"rows": [{{"key": "<copied verbatim>",
-   "senses": [{{"ru": "тяга; сквозняк", "example": "A cold draft came from the window."}}]}}]}}
+   "senses": [{{"native": "<the meaning in {native}>",
+               "example": "<a short sentence in {target} using that meaning>"}}]}}]}}
 ```
 
 One row per word you answer; a row you skip entirely is left unanswered, so answer every row in
@@ -70,8 +71,8 @@ would teach nothing new.
 
 ## Writing a sense
 
-`ru` is short: a word or a handful of words, not a sentence, and no explanation in brackets beyond
-a register mark.
+`native` is the meaning written in {native}, and it is short: a word or a handful of words, not a
+sentence, and no explanation in brackets beyond a register mark.
 
 `example` is a very short sentence, well under ten words, plain and present-day, using the
 headword in exactly that sense.
@@ -139,12 +140,15 @@ class SensePlan:
                 merged.append(row)
                 continue
             senses = [
-                (self._single_field(text=str(sense.get('ru', ''))), self._single_field(text=str(sense.get('example', ''))))
+                (
+                    self._single_field(text=str(sense.get('native', ''))),
+                    self._single_field(text=str(sense.get('example', ''))),
+                )
                 for sense in answer.get('senses', [])[:MAX_SENSES_PER_WORD]
             ]
-            senses = [(ru, example) for ru, example in senses if ru and example]
+            senses = [(meaning, example) for meaning, example in senses if meaning and example]
             updated = dict(row)
-            updated[native_column] = SENSE_SEPARATOR.join(ru for ru, _ in senses)
+            updated[native_column] = SENSE_SEPARATOR.join(meaning for meaning, _ in senses)
             updated[target_column] = SENSE_SEPARATOR.join(example for _, example in senses)
             filled_senses += len(senses)
             answered_words += 1
@@ -179,7 +183,9 @@ class TaskFiles:
             path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, indent=1), encoding='utf-8')
             written.append(path)
         (directory / INSTRUCTIONS_FILE).write_text(
-            INSTRUCTIONS_TEMPLATE.format(target=language.target_name),
+            INSTRUCTIONS_TEMPLATE.format(
+                target=language.target_name, native=language.native_name,
+            ),
             encoding='utf-8',
         )
         return written
@@ -206,7 +212,11 @@ def main_for(
     data_directory = language.data_directory(root=root)
     cards_path = data_directory / CARDS_FILENAME
     rows = language_config.TsvFile.read(cards_path)
-    cache = dictionaries.Cache(root=data_directory / dictionaries.CACHE_DIRECTORY_NAME, refresh=False)
+    cache = dictionaries.Cache(
+        root=data_directory / dictionaries.CACHE_DIRECTORY_NAME,
+        refresh=False,
+        edition=language.wiktionary_host,
+    )
     sense_plan = SensePlan(language=language, cache=cache)
 
     if plan:

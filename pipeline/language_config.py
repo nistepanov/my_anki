@@ -7,6 +7,7 @@ concrete names live in languages/<code>.json and are rendered here.
 
 import json
 import pathlib
+import re
 import typing
 
 # Every stage resolves templates, per-language config and generated data against this, so the
@@ -53,12 +54,26 @@ SECTION_LABELS = {
            'senses': 'Other meanings', 'check_native': 'check the translation', 'guess': 'Which word is it?',
            'read_from_context': 'What does the marked word mean?',
            'new': 'New', 'learning': 'Learning', 'young': 'Young', 'mature': 'Mature', 'days': 'd'},
+    'pl': {'examples': 'Przykłady', 'synonyms': 'Synonimy', 'antonyms': 'Antonimy', 'forms': 'Formy', 'figurative': 'W przenośni',
+           'senses': 'Inne znaczenia', 'check_native': 'sprawdź tłumaczenie', 'guess': 'Jakie to słowo?',
+           'read_from_context': 'Co znaczy zaznaczone słowo?',
+           'new': 'Nowa', 'learning': 'W nauce', 'young': 'Młoda', 'mature': 'Dojrzała', 'days': 'd'},
+    'ar': {'examples': 'أمثلة', 'synonyms': 'مرادفات', 'antonyms': 'أضداد', 'forms': 'الصيغ', 'figurative': 'مجازا',
+           'senses': 'معان أخرى', 'check_native': 'تحقق من الترجمة', 'guess': 'ما هي الكلمة؟',
+           'read_from_context': 'ما معنى الكلمة المحددة؟',
+           'new': 'جديدة', 'learning': 'قيد التعلم', 'young': 'حديثة', 'mature': 'راسخة', 'days': 'ي'},
 }
+# Scripts written right to left. The card marks the blocks holding this language's text, so a
+# translation stays readable beside target-language text that runs the other way.
+RIGHT_TO_LEFT_LANGUAGES = frozenset({'ar', 'he'})
 DEFAULT_LABEL_LANGUAGE = 'en'
 # English is the useful pivot for image search and extra translations, unless it is the
 # language being learned.
 DEFAULT_PIVOT = 'en'
 DEFAULT_NATIVE = 'ru'
+# The deck built when no language is named. Both defaults together have to name a real pair,
+# so changing one without the other gives a deck glossed into the language it teaches.
+DEFAULT_TARGET = 'en'
 
 # Columns that carry no language and are spelled the same in every deck.
 NEUTRAL_COLUMNS = (
@@ -108,6 +123,7 @@ JUDGEMENT_COLUMNS = (
 # The only deck_split value this pipeline understands. Anything else, including absence,
 # means one flat deck.
 DECK_SPLIT_CEFR = 'cefr'
+CEFR_LEVELS_LOW_TO_HIGH = ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')
 # Sorts after every CEFR level, so a row the judgement stage left unleveled lands in a
 # subdeck of its own at the end of the study order rather than in the shared parent deck.
 UNLEVELED_SUBDECK_NAME = 'Unleveled'
@@ -115,6 +131,10 @@ UNLEVELED_SUBDECK_NAME = 'Unleveled'
 # What a language gets unless its own config names a different set: recognise the foreign word,
 # produce it from the native prompt, and read it inside a sentence.
 DEFAULT_CARD_TEMPLATES = ('recognition', 'recall', 'context')
+# How many of a language's commonest words count as its grammar rather than its vocabulary.
+# Around this mark a frequency list stops holding articles and pronouns and starts holding
+# nouns a learner still has to be taught.
+DEFAULT_FREQUENT_WORD_COUNT = 120
 
 
 class LanguageConfig:
@@ -154,6 +174,14 @@ class LanguageConfig:
             str(winner).lower(): str(loser).lower()
             for winner, loser in data.get('superseded_cards', {}).items()
         }
+        # Grammar words, and the shapes a definition wears only to name a part of speech: facts
+        # about one language, which is why they are read here and never written into a stage.
+        self._definition_openers: typing.Sequence[str] = data.get('definition_openers', ())
+        self._participle_suffix: str = data.get('participle_suffix', '')
+        self._grammar_words: typing.Sequence[str] = data.get('grammar_words', ())
+        self._filler_words: typing.Sequence[str] = data.get('filler_words', ())
+        self._inflection_endings: typing.Sequence[typing.Sequence[str]] = data.get('inflection_endings', ())
+        self._frequent_word_count: int = int(data.get('frequent_word_count', DEFAULT_FREQUENT_WORD_COUNT))
         self.wikipedia_host: str = data.get('wikipedia_host', '')
         self.deck_split: typing.Optional[str] = data.get('deck_split')
         self.mastered_levels: typing.Tuple[str, ...] = tuple(
@@ -167,21 +195,93 @@ class LanguageConfig:
         """Display name for a column suffix, for prompts that address languages by role."""
         return LANGUAGE_FACTS.get(suffix, {}).get('name', suffix)
 
+    def corpus_code_of(self, *, suffix: str) -> str:
+        """The ISO 639-3 code a sentence corpus tags a translation with."""
+        return LANGUAGE_FACTS.get(suffix, {}).get('iso3', suffix)
+
+    @property
+    def definition_openers_pattern(self) -> typing.Optional[typing.Pattern]:
+        """Phrases a definition wears only to announce a part of speech, or nothing when unstated.
+
+        A language that states none keeps its definitions whole. That compares two cards less
+        sharply and never compares two unrelated ones, which is the right way round.
+        """
+        openers = [str(phrase).strip() for phrase in self._definition_openers if str(phrase).strip()]
+        if not openers:
+            return None
+        alternatives = '|'.join(re.escape(phrase).replace(r'\ ', r'\s+') for phrase in openers)
+        return re.compile(rf'^\s*(?:{alternatives})\s+', re.IGNORECASE)
+
+    @property
+    def participle_pattern(self) -> typing.Optional[typing.Pattern]:
+        """The ending a noun's definition reaches for where a verb's uses the bare stem."""
+        if not self._participle_suffix:
+            return None
+        return re.compile(rf'\b(\w+?){re.escape(self._participle_suffix)}\b')
+
+    @property
+    def inflection_endings(self) -> typing.Tuple[typing.Tuple[str, str], ...]:
+        """Endings a reader passes straight through, as (ending, replacement) pairs.
+
+        A language that states none is simply matched on the written form. That finds fewer
+        sentences and never accepts a wrong one, which is the right way round.
+        """
+        return tuple(
+            (str(pair[0]), str(pair[1]))
+            for pair in self._inflection_endings
+            if len(pair) == 2
+        )
+
+    @property
+    def grammar_words(self) -> typing.Tuple[str, ...]:
+        """Words that add nothing to a sentence beyond holding it together.
+
+        Stated per language because frequency alone cannot separate them: a language's commonest
+        words include plain vocabulary a learner still has to meet, and miss modals and relatives
+        that carry no meaning of their own.
+        """
+        return self._cleaned(words=self._grammar_words)
+
+    @property
+    def filler_words(self) -> typing.Tuple[str, ...]:
+        """Words every definition reaches for, which say nothing about the meaning being defined.
+
+        Close to the grammar words and deliberately not the same list: a definition leans on
+        vocabulary a sentence does not, such as the words for a person or a thing in general.
+        """
+        return self._cleaned(words=self._filler_words)
+
+    @staticmethod
+    def _cleaned(*, words: typing.Sequence[str]) -> typing.Tuple[str, ...]:
+        return tuple(str(word).strip().lower() for word in words if str(word).strip())
+
+    @property
+    def frequent_word_count(self) -> int:
+        """How much of the frequency list stands in for this language's grammar words.
+
+        The commonest words of any language are its grammar, so a frequency list supplies them
+        without a hand-written list per language — and a hand-written list is what quietly turns a
+        shared stage into a single-language one.
+        """
+        return self._frequent_word_count
+
+    @property
+    def native_corpus_code(self) -> str:
+        return self.corpus_code_of(suffix=self.native)
+
+    @property
+    def pivot_corpus_code(self) -> typing.Optional[str]:
+        return self.corpus_code_of(suffix=self.pivot) if self.pivot is not None else None
+
     @classmethod
     def for_languages(cls, *, target: str, native: str, root: pathlib.Path) -> 'LanguageConfig':
         """Build a working config from nothing but the two language codes."""
         data = cls.derive(target=target, native=native)
-        override_path = root / CONFIG_DIRECTORY / f'{target}.json'
-        if override_path.exists():
-            data = cls.merge(base=data, override=json.loads(override_path.read_text(encoding='utf-8')))
+        for name in (f'{target}.json', f'{target}.{native}.json'):
+            override_path = root / CONFIG_DIRECTORY / name
+            if override_path.exists():
+                data = cls.merge(base=data, override=json.loads(override_path.read_text(encoding='utf-8')))
         return cls(data=data)
-
-    @classmethod
-    def load(cls, *, code: str, root: pathlib.Path) -> 'LanguageConfig':
-        override_path = root / CONFIG_DIRECTORY / f'{code}.json'
-        override = json.loads(override_path.read_text(encoding='utf-8')) if override_path.exists() else {}
-        native = override.get('native', {}).get('suffix', DEFAULT_NATIVE)
-        return cls.for_languages(target=code, native=native, root=root)
 
     @staticmethod
     def derive(*, target: str, native: str) -> dict:
@@ -249,6 +349,20 @@ class LanguageConfig:
         if self.mastered_deck is not None and level.upper() in self.mastered_levels:
             return self.mastered_deck
         return self.deck_name
+
+    @property
+    def studied_level_range(self) -> str:
+        """The levels this deck still teaches, for prompts that must pitch an answer at a learner.
+
+        Derived from the finished levels rather than stated, so one learner's progress cannot leak
+        into a prompt another learner's deck reuses.
+        """
+        remaining = [level for level in CEFR_LEVELS_LOW_TO_HIGH if level not in self.mastered_levels]
+        if not remaining:
+            return CEFR_LEVELS_LOW_TO_HIGH[-1]
+        if len(remaining) == 1:
+            return remaining[0]
+        return f'{remaining[0]}-{remaining[-1]}'
 
     @property
     def note_type_name(self) -> str:
@@ -422,11 +536,22 @@ class LanguageConfig:
 
 def add_language_arguments(parser) -> None:
     """The only language input the pipeline takes: what you are learning, and your own."""
-    parser.add_argument('--target', required=True, help="Language being learned, e.g. es")
-    parser.add_argument('--native', default=DEFAULT_NATIVE, help="Your own language")
+    parser.add_argument(
+        '--target', default=DEFAULT_TARGET,
+        help=f"Language whose cards are being built, e.g. es (default: {DEFAULT_TARGET})",
+    )
+    parser.add_argument(
+        '--native', default=DEFAULT_NATIVE,
+        help=f"Your own language, the one cards are glossed into (default: {DEFAULT_NATIVE})",
+    )
 
 
 def language_from(arguments, *, root: pathlib.Path) -> 'LanguageConfig':
+    if arguments.target == arguments.native:
+        raise SystemExit(
+            f"--target and --native are both {arguments.target!r}, so every card would gloss a word "
+            f"into its own language. Name the language you are learning and your own separately."
+        )
     return LanguageConfig.for_languages(target=arguments.target, native=arguments.native, root=root)
 
 

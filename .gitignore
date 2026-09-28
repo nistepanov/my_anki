@@ -25,4 +25,5 @@ __pycache__/
 /.vscode/
 /.claude/
 /.audit/
+/.agnostic-test/
 *.log

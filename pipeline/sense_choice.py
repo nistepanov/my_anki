@@ -39,7 +39,8 @@ MINIMUM_CANDIDATES = 2
 
 INSTRUCTIONS_TEMPLATE = """# Choosing which meaning a card teaches
 
-Each task file lists {target} words a {native}-speaking learner at B2-C1 level is about to study,
+Each task file lists {target} words a learner who speaks {native}, at {levels} level, is about to
+study,
 with a numbered list of dictionary senses for the word's part of speech. The dictionary lists
 senses in historical order, so the first one is often old or specialised.
 
@@ -149,7 +150,11 @@ class TaskFiles:
             path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
             written.append(path)
         (directory / INSTRUCTIONS_FILE).write_text(
-            INSTRUCTIONS_TEMPLATE.format(target=language.target_name, native=language.native_name),
+            INSTRUCTIONS_TEMPLATE.format(
+                target=language.target_name,
+                native=language.native_name,
+                levels=language.studied_level_range,
+            ),
             encoding='utf-8',
         )
         return written
@@ -185,7 +190,11 @@ def main_for(
     cards_path = data_directory / CARDS_FILENAME
     rows = language_config.TsvFile.read(words_path)
     built_keys = {row['key'] for row in language_config.TsvFile.read(cards_path)} if cards_path.exists() else set()
-    cache = dictionaries.Cache(root=data_directory / dictionaries.CACHE_DIRECTORY_NAME, refresh=False)
+    cache = dictionaries.Cache(
+        root=data_directory / dictionaries.CACHE_DIRECTORY_NAME,
+        refresh=False,
+        edition=language.wiktionary_host,
+    )
     choice = SenseChoice(language=language, cache=cache)
     directory = data_directory / TASK_DIRECTORY
 

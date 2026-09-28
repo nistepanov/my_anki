@@ -55,6 +55,8 @@ WIKTIONARY_MAX_WORKERS = 2
 TATOEBA_MAX_WORKERS = 3
 # MediaWiki's own limit on titles per query for anonymous (unauthenticated) clients.
 WIKTIONARY_BATCH_SIZE = 50
+# Recorded beside cached wikitext, since only the edition that wrote it can be parsed back.
+EDITION_KEY = 'edition'
 
 # RAE's own free-tier response headers report a hard 10-requests-per-minute ceiling (and a
 # separate 100-per-day one); a quarter second between requests still bursts well past that, so
@@ -82,10 +84,6 @@ TATOEBA_SEARCH_LIMIT = 20
 TATOEBA_MIN_WORDS = 4
 TATOEBA_MAX_WORDS = 10
 TATOEBA_MAX_EXAMPLES = 3
-# Tatoeba tags translations with ISO 639-3 codes that the language config does not carry;
-# these match the only pair this pipeline targets today (Spanish -> Russian/English).
-TATOEBA_NATIVE_LANGUAGE_CODE = 'rus'
-TATOEBA_PIVOT_LANGUAGE_CODE = 'eng'
 
 TATOEBA_RELEVANCE_MIN_LEMMA_LENGTH = 4
 TATOEBA_RELEVANCE_MAX_LENGTH_SURPLUS = 4
@@ -117,6 +115,9 @@ EXAMPLES_SOURCE_COLUMN = 'examples_source'
 SECTION_HEADING_PATTERN = re.compile(r'^==[^=].*==\s*$', re.MULTILINE)
 WIKILINK_PATTERN = re.compile(r'\[\[([^\]|]*)(?:\|([^\]]*))?\]\]')
 TEMPLATE_PATTERN = re.compile(r'\{\{([^{}|]*)((?:\|[^{}]*)?)\}\}')
+# How deep a nest of templates is unwrapped before giving up. Quotation markup reaches three
+# levels in practice; the cap only stops a malformed page from looping.
+TEMPLATE_NESTING_LIMIT = 8
 REFERENCE_TAG_PATTERN = re.compile(r'<ref[^>]*?/>|<ref[^>]*?>.*?</ref>', re.DOTALL)
 EMPHASIS_PATTERN = re.compile(r"'{2,3}")
 # An edition that files related words by block puts the sense's register and usage note in the
@@ -204,6 +205,31 @@ class WikitextDialect(typing.NamedTuple):
         )
 
     @staticmethod
+    def russian_edition(*, language: language_config.LanguageConfig) -> 'WikitextDialect':
+        return WikitextDialect(
+            # One equals sign, and the language named by a template rather than spelled out.
+            language_section=re.compile(
+                r'^=\s*\{\{-' + re.escape(language.code) + r'-\}\}\s*=\s*$', re.MULTILINE,
+            ),
+            # Senses, synonyms, antonyms, hypernyms and idioms are all hash lists, so the heading
+            # above a list is the only thing that says which one it is.
+            definition_line=re.compile(r'^#(?![#:*])\s*(.*)$', re.MULTILINE),
+            part_of_speech_heading=None,
+            related_word=WIKILINK_PATTERN,
+            synonym_template_names=frozenset(),
+            form_pointer=re.compile(r'\{\{\s*(форма-[^{}|]*)\|([^{}]*)\}\}'),
+            # Everything else is dropped whole, which is what the example and emphasis templates
+            # wrapping a quotation need.
+            templates_rendering_argument=frozenset(),
+            blocks=BlockMarkers(
+                boundary=re.compile(r'^={3,}\s*([^=\n]+?)\s*={3,}\s*$', re.MULTILINE),
+                definitions='Значение',
+                synonyms='Синонимы',
+                antonyms='Антонимы',
+            ),
+        )
+
+    @staticmethod
     def german_edition(*, language: language_config.LanguageConfig) -> 'WikitextDialect':
         return WikitextDialect(
             language_section=re.compile(
@@ -234,6 +260,7 @@ WIKITEXT_DIALECTS = {
     'es': WikitextDialect.spanish_edition,
     'en': WikitextDialect.english_edition,
     'de': WikitextDialect.german_edition,
+    'ru': WikitextDialect.russian_edition,
 }
 
 
@@ -368,9 +395,10 @@ class RateLimiter:
 class Cache:
     """On-disk JSON cache, one file per (source, lemma). Also stores negative results."""
 
-    def __init__(self, *, root: pathlib.Path, refresh: bool) -> None:
+    def __init__(self, *, root: pathlib.Path, refresh: bool, edition: str = '') -> None:
         self._root = root
         self._refresh = refresh
+        self._edition = edition
 
     def load(self, *, source: Source, lemma: str) -> typing.Optional[dict]:
         if self._refresh:
@@ -379,13 +407,27 @@ class Cache:
         if not path.exists():
             return None
         try:
-            return json.loads(path.read_text(encoding='utf-8'))
+            payload = json.loads(path.read_text(encoding='utf-8'))
         except (OSError, json.JSONDecodeError):
             return None
+        return None if self._came_from_another_edition(source=source, payload=payload) else payload
 
     def store(self, *, source: Source, lemma: str, payload: dict) -> None:
+        if source is Source.WIKTIONARY and self._edition:
+            payload = {**payload, EDITION_KEY: self._edition}
         path = self._path_for(source=source, lemma=lemma)
         path.write_text(json.dumps(payload, ensure_ascii=False), encoding='utf-8')
+
+    def _came_from_another_edition(self, *, source: Source, payload: dict) -> bool:
+        """Whether stored wikitext was written by an edition whose markup this run cannot read.
+
+        Only the edition that produced an entry has a dialect that parses it, so reusing another
+        edition's wikitext yields no definitions at all — and reports success while doing it.
+        An entry stored before editions were recorded names none, so it is refetched once.
+        """
+        if source is not Source.WIKTIONARY or not self._edition:
+            return False
+        return payload.get(EDITION_KEY) != self._edition
 
     def _path_for(self, *, source: Source, lemma: str) -> pathlib.Path:
         directory = self._root / source.value
@@ -987,12 +1029,27 @@ class WiktionaryClient:
     def _clean_text(*, text: str, dialect: WikitextDialect) -> str:
         text = REFERENCE_TAG_PATTERN.sub('', text)
         text = WIKILINK_PATTERN.sub(lambda match: match.group(2) or match.group(1), text)
-        text = TEMPLATE_PATTERN.sub(
-            lambda match: WiktionaryClient._render_template(match, dialect=dialect), text,
-        )
+        text = WiktionaryClient._strip_templates(text=text, dialect=dialect)
         text = EMPHASIS_PATTERN.sub('', text)
         text = WHITESPACE_PATTERN.sub(' ', text).strip()
         return text.rstrip('.').strip()
+
+    @staticmethod
+    def _strip_templates(*, text: str, dialect: WikitextDialect) -> str:
+        """Take the templates out, innermost first, until none is left.
+
+        A template pattern cannot match one that holds another, so a single pass over an edition's
+        quotation markup leaves the outer wrapper behind — and a sense that still carries markup is
+        thrown away later rather than shown, so the sense disappears instead of the markup.
+        """
+        for _ in range(TEMPLATE_NESTING_LIMIT):
+            stripped = TEMPLATE_PATTERN.sub(
+                lambda match: WiktionaryClient._render_template(match, dialect=dialect), text,
+            )
+            if stripped == text:
+                return stripped
+            text = stripped
+        return text
 
 
 class TatoebaClient:
@@ -1006,7 +1063,9 @@ class TatoebaClient:
         if cached is not None:
             if not cached.get('found'):
                 return FetchStatus.NOT_FOUND, []
-            return FetchStatus.FOUND, TatoebaClient._select(lemma=lemma, results=cached.get('results', []))
+            return FetchStatus.FOUND, TatoebaClient._select(
+                lemma=lemma, results=cached.get('results', []), language=language,
+            )
 
         result = HttpClient.get(url=TatoebaClient._build_url(lemma=lemma, language=language))
         if result.status == FetchStatus.FAILED:
@@ -1018,7 +1077,7 @@ class TatoebaClient:
         body = json.loads(result.payload)
         results = body.get('results') or []
         cache.store(source=Source.TATOEBA, lemma=lemma, payload={'found': True, 'results': results})
-        return FetchStatus.FOUND, TatoebaClient._select(lemma=lemma, results=results)
+        return FetchStatus.FOUND, TatoebaClient._select(lemma=lemma, results=results, language=language)
 
     @staticmethod
     def _build_url(*, lemma: str, language: language_config.LanguageConfig) -> str:
@@ -1029,7 +1088,9 @@ class TatoebaClient:
         )
 
     @staticmethod
-    def _select(*, lemma: str, results: typing.List[dict]) -> typing.List[TatoebaExample]:
+    def _select(
+        *, lemma: str, results: typing.List[dict], language: language_config.LanguageConfig,
+    ) -> typing.List[TatoebaExample]:
         candidates = []
         for result in results:
             text = (result.get('text') or '').strip()
@@ -1038,22 +1099,31 @@ class TatoebaClient:
             word_count = len(text.split())
             if not (TATOEBA_MIN_WORDS <= word_count <= TATOEBA_MAX_WORDS):
                 continue
-            native_text, pivot_text = TatoebaClient._pick_translations(result=result)
+            native_text, pivot_text = TatoebaClient._pick_translations(result=result, language=language)
             priority = 0 if native_text else (1 if pivot_text else 2)
             candidates.append((priority, word_count, TatoebaExample(target=text, native=native_text, pivot=pivot_text)))
         candidates.sort(key=lambda candidate: (candidate[0], candidate[1]))
         return [candidate[2] for candidate in candidates[:TATOEBA_MAX_EXAMPLES]]
 
     @staticmethod
-    def _pick_translations(*, result: dict) -> typing.Tuple[str, str]:
+    def _pick_translations(
+        *, result: dict, language: language_config.LanguageConfig,
+    ) -> typing.Tuple[str, str]:
+        """Keep only the translations the card will show, matched on the corpus's own language code.
+
+        The corpus returns whatever its contributors wrote, so a wrong match here does not leave a
+        gap — it writes a neighbouring language into the column the card labels as the reader's.
+        """
+        native_code = language.native_corpus_code
+        pivot_code = language.pivot_corpus_code
         native_text = ''
         pivot_text = ''
         for translation_group in result.get('translations') or []:
             for translation in translation_group:
-                lang = translation.get('lang')
-                if lang == TATOEBA_NATIVE_LANGUAGE_CODE and not native_text:
+                code = translation.get('lang')
+                if code == native_code and not native_text:
                     native_text = (translation.get('text') or '').strip()
-                elif lang == TATOEBA_PIVOT_LANGUAGE_CODE and not pivot_text:
+                elif pivot_code is not None and code == pivot_code and not pivot_text:
                     pivot_text = (translation.get('text') or '').strip()
         return native_text, pivot_text
 
@@ -1441,7 +1511,7 @@ def main_for(
     ]
 
     cache_root = data_directory / CACHE_DIRECTORY_NAME
-    cache = Cache(root=cache_root, refresh=refresh)
+    cache = Cache(root=cache_root, refresh=refresh, edition=language.wiktionary_host)
     stats = Stats()
 
     lemma_by_row = [RowEnricher.lookup_lemma(word=row['word']) for row in rows]

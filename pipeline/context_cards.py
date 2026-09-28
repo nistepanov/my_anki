@@ -36,6 +36,7 @@ import typing
 import wordfreq
 
 from . import examples
+from . import frequency
 from . import language_config
 
 CARDS_FILENAME = 'cards.tsv'
@@ -53,24 +54,6 @@ MINIMUM_CLUE_WORDS = 2
 COMFORTABLE_SENTENCE_LENGTH = 8
 
 WORD_PATTERN = re.compile(r"[^\W\d_][\w'-]*", re.UNICODE)
-
-# Endings a learner reads straight through. Stripping them lets a sentence's `carries` match a
-# known `carry`, and a target's `kidneys` match the headword `kidney`.
-INFLECTION_ENDINGS = (
-    ("n't", ''), ("'s", ''), ('ies', 'y'), ('es', ''), ('ed', ''), ('ing', ''),
-    ('est', ''), ('er', ''), ('ly', ''), ('s', ''), ('d', ''),
-)
-
-# Grammar the sentence needs but which says nothing about the target word.
-FUNCTION_WORDS = frozenset("""
-a an the this that these those here there
-is are was were be been being am do does did done have has had having
-will would shall should can could may might must
-i you he she it we they me him her us them my your his its our their
-in on at to of for from by with as into onto about over under after before
-and or but not no nor so if then than too very just now also only
-one two some any all both each other another same such what which who whom whose
-""".split())
 
 
 class SentenceChoice(typing.NamedTuple):
@@ -95,26 +78,38 @@ class KnownVocabulary:
     learner was actually taught, including uncommon ones a frequency list places far down.
     """
 
-    def __init__(self, *, forms: typing.Set[str]):
+    def __init__(
+        self, *, forms: typing.Set[str], endings: typing.Tuple[typing.Tuple[str, str], ...],
+        grammar_words: typing.Set[str],
+    ):
         self._forms = forms
+        self._endings = endings
+        self._grammar_words = grammar_words
 
     def __contains__(self, word: str) -> bool:
         form = word.lower()
-        return form in self._forms or bool(self.stems(word=form) & self._forms)
+        return form in self._forms or bool(self.stems(word=form, endings=self._endings) & self._forms)
+
+    @property
+    def grammar_words(self) -> typing.Set[str]:
+        """This language's grammar words: its commonest words, from a frequency list."""
+        return self._grammar_words
 
     @staticmethod
-    def stems(*, word: str) -> typing.Set[str]:
+    def stems(*, word: str, endings: typing.Tuple[typing.Tuple[str, str], ...]) -> typing.Set[str]:
         """A word and the forms it might be an inflection of, since neither source is inflected.
 
         Deliberately generous and occasionally wrong: treating an unknown word as known costs one
         slightly hard sentence, while missing an inflection costs a good sentence entirely.
         """
         found = {word}
-        for ending, replacement in INFLECTION_ENDINGS:
+        for ending, replacement in endings:
             if word.endswith(ending) and len(word) > len(ending) + 1:
                 stem = word[:-len(ending)] + replacement
                 found.update({stem, f'{stem}e'})
-        if len(word) > 4 and word[-1] == word[-2]:
+        # The doubled-letter rule (running -> run) is itself an English pattern, so it only fires
+        # for a language that actually states endings to strip.
+        if endings and len(word) > 4 and word[-1] == word[-2]:
             found.add(word[:-1])
         return found
 
@@ -122,6 +117,7 @@ class KnownVocabulary:
     def build(
         cls, *, rows: typing.Sequence[dict], language: language_config.LanguageConfig,
     ) -> 'KnownVocabulary':
+        endings = language.inflection_endings
         taught = {
             row['word'].strip().lower() for row in rows
             if row.get('cefr', '').strip().upper() in language.mastered_levels
@@ -129,8 +125,10 @@ class KnownVocabulary:
         common = set(wordfreq.top_n_list(language.target, KNOWN_WORD_COUNT))
         forms = set(taught) | common
         for word in list(forms):
-            forms.update(cls.stems(word=word))
-        return cls(forms=forms)
+            forms.update(cls.stems(word=word, endings=endings))
+        return cls(
+            forms=forms, endings=endings, grammar_words=set(frequency.grammar_words(language=language)),
+        )
 
 
 class ContextPlan:
@@ -162,7 +160,10 @@ class ContextPlan:
         forms = {headword}
         for part in headword.split():
             forms.add(part)
-        return {form for term in set(forms) for form in KnownVocabulary.stems(word=term)} | forms
+        endings = self._language.inflection_endings
+        return {
+            form for term in set(forms) for form in KnownVocabulary.stems(word=term, endings=endings)
+        } | forms
 
     def _judge(self, *, sentence: str, index: int, target_forms: typing.Set[str]) -> typing.Optional[SentenceChoice]:
         """The sentence as a candidate, or nothing when it cannot carry a card."""
@@ -181,7 +182,7 @@ class ContextPlan:
                 continue
             if form not in self._known:
                 return None
-            if form not in FUNCTION_WORDS:
+            if form not in self._known.grammar_words:
                 clue_words += 1
         if clue_words < MINIMUM_CLUE_WORDS:
             return None

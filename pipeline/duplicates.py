@@ -53,17 +53,10 @@ MERGED_COLUMN = 'merged_into'
 # words merely close in meaning start folding together.
 SIMILARITY_THRESHOLD = 0.60
 
-# The openers a definition wears only to announce its part of speech. Stripped before comparing,
-# because they are exactly what differs between a verb's definition and its noun's.
-PART_OF_SPEECH_OPENER_PATTERN = re.compile(
-    r'^\s*(this\s+word\s+(?:means|describes|refers\s+to|is)\s+|'
-    r'to\s+|the\s+act\s+of\s+|an?\s+act\s+of\s+|the\s+state\s+of\s+|the\s+fact\s+of\s+|'
-    r'the\s+process\s+of\s+|the\s+quality\s+of\s+|a\s+|an\s+|the\s+)', re.IGNORECASE,
-)
-# A noun's definition reaches for the participle where a verb's uses the bare stem: "getting away"
-# against "get away". Cutting the ending lets the two words match.
-PARTICIPLE_PATTERN = re.compile(r'\b(\w+?)ing\b')
-NON_LETTER_PATTERN = re.compile(r'[^a-z ]+')
+# Anything that is not a letter or a space. Letters of every script count, or a definition in a
+# script this pattern does not list reduces to nothing — and two empty strings compare as
+# identical, which folds a whole deck into one card.
+NON_LETTER_PATTERN = re.compile(r'[^\w ]+|[\d_]+')
 
 # Parts of speech keep this order when two cards' are combined, so "verb noun" and "noun verb"
 # cannot both appear for the same kind of pair.
@@ -90,22 +83,31 @@ class Duplicates:
         self._language = language
         self._native_bands = frequency.FrequencyBands(language_code=language.native)
 
-    @staticmethod
-    def comparable(*, definition: str) -> str:
+    def comparable(self, *, definition: str) -> str:
         """A definition reduced to what it says, with the part-of-speech clothing taken off."""
         text = definition.strip().lower()
-        previous = None
-        while previous != text:
-            previous = text
-            text = PART_OF_SPEECH_OPENER_PATTERN.sub('', text).strip()
-        text = PARTICIPLE_PATTERN.sub(r'\1', text)
+        openers = self._language.definition_openers_pattern
+        if openers is not None:
+            previous = None
+            while previous != text:
+                previous = text
+                text = openers.sub('', text).strip()
+        participle = self._language.participle_pattern
+        if participle is not None:
+            text = participle.sub(r'\1', text)
         return ' '.join(NON_LETTER_PATTERN.sub(' ', text).split())
 
-    @classmethod
-    def similarity(cls, *, first: str, second: str) -> float:
-        return difflib.SequenceMatcher(
-            None, cls.comparable(definition=first), cls.comparable(definition=second),
-        ).ratio()
+    def similarity(self, *, first: str, second: str) -> float:
+        """How alike two definitions read, once reduced to what they say.
+
+        A reduction that leaves nothing says nothing about the meaning, and two empty strings
+        compare as a perfect match, so an unreadable pair scores zero rather than one.
+        """
+        left = self.comparable(definition=first)
+        right = self.comparable(definition=second)
+        if not left or not right:
+            return 0.0
+        return difflib.SequenceMatcher(None, left, right).ratio()
 
     def _keeper_first(self, *, rows: typing.Sequence[dict]) -> typing.List[dict]:
         """The two cards, the one whose note should survive first.

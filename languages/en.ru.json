@@ -1,0 +1,22 @@
+{
+  "deck": "English B2+",
+  "deck_note": "named for the levels it holds, since the finished ones live in their own deck",
+  "mastered_levels": [
+    "A1",
+    "A2",
+    "B1"
+  ],
+  "mastered_levels_note": "levels the learner has finished; their cards stay suspended, and re-levelling keeps refilling them, so they are hidden again after every push",
+  "mastered_deck": "English B1",
+  "mastered_deck_note": "finished levels live outside the main deck, so studying it only ever reaches the levels still being learned",
+  "card_templates": [
+    "recognition",
+    "context"
+  ],
+  "card_templates_note": "the learner already reads english, so producing a word from its meaning is not what the deck is for; a word is met either inside a sentence or on its own",
+  "superseded_cards": {
+    "context": "recognition"
+  },
+  "superseded_cards_note": "a word met inside a sentence has already been asked what it means, so the bare headword card stands down for it; a word with no sentence keeps it",
+  "profile_note": "one learner's English deck, not a fact about English: which levels they have finished, what their decks are called, and which cards they still need. a different learner of English gets their own file named for their own language"
+}

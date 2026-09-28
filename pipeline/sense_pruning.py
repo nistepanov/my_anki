@@ -55,6 +55,7 @@ import re
 import typing
 
 from . import dictionaries
+from . import frequency
 from . import language_config
 
 CARDS_FILENAME = 'cards.tsv'
@@ -69,16 +70,9 @@ LIST_SEPARATOR = ', '
 # the strength of the word "enjoyment" alone.
 MINIMUM_SHARED_WORDS = 2
 
-WORD_PATTERN = re.compile(r'[a-z]+')
-# Plural and participle endings, so a card's `bones` matches a sense's `bone`.
-SUFFIX_PATTERN = re.compile(r'(ing|ed|es|s)$')
+# Letters of any script; a definition in a script this pattern skips would reduce to nothing.
+WORD_PATTERN = re.compile(r'[^\W\d_]+')
 MINIMUM_WORD_LENGTH = 3
-
-# Words every definition reaches for, which say nothing about which meaning is being defined.
-FILLER_WORDS = frozenset("""
-a an the of to in on for and or with that which is are be been being
-any some someone something person thing used use as at by from into other such
-""".split())
 
 
 class SensePruning:
@@ -86,12 +80,27 @@ class SensePruning:
 
     def __init__(self, *, language: language_config.LanguageConfig):
         self._language = language
+        # Words every definition reaches for, which say nothing about which meaning is defined.
+        self._filler_words = frequency.filler_words(language=language)
 
-    @staticmethod
-    def content_words(*, text: str) -> typing.Set[str]:
+    @property
+    def _suffix_pattern(self) -> typing.Optional[typing.Pattern]:
+        """Plural and participle endings, so a card's `bones` matches a sense's `bone`.
+
+        A language that states no inflection endings is matched on the written form as is.
+        """
+        endings = self._language.inflection_endings
+        if not endings:
+            return None
+        alternatives = '|'.join(re.escape(ending) for ending, _ in endings)
+        return re.compile(rf'(?:{alternatives})$')
+
+    def content_words(self, *, text: str) -> typing.Set[str]:
+        pattern = self._suffix_pattern
         return {
-            SUFFIX_PATTERN.sub('', word) for word in WORD_PATTERN.findall(text.lower())
-            if word not in FILLER_WORDS and len(word) >= MINIMUM_WORD_LENGTH
+            pattern.sub('', word) if pattern is not None else word
+            for word in WORD_PATTERN.findall(text.lower())
+            if word not in self._filler_words and len(word) >= MINIMUM_WORD_LENGTH
         }
 
     @staticmethod
