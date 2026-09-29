@@ -1,0 +1,8 @@
+{
+  "card_templates": [
+    "recognition",
+    "recall"
+  ],
+  "card_templates_note": "a third card per word made new words arrive at a third of the daily limit; a beginner still needs to produce the word, so the sentence card goes and recall stays",
+  "profile_note": "one learner's Spanish deck, not a fact about Spanish: which cards they still need"
+}
