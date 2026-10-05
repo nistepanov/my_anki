@@ -1,47 +1,113 @@
 # Vocabulary → Anki
 
-Turns a list of words you are learning into finished Anki cards: a definition in the language you
-are learning, translations, example sentences, synonyms and antonyms, a verb's forms, a picture
-and a recording.
+Turns a list of words you are learning into finished Anki cards. Each card gets a definition in
+the language you learn, translations into your own language, example sentences, synonyms and
+antonyms, a verb's forms, a picture and a recording.
 
-The point is that almost nothing on a card is invented. A published dictionary decides what a
-word means, a published graded word list decides how hard it is, and a frequency table decides
-which words you meet first. A model is asked only for what nobody publishes: restating a dense
-definition in simple words, and translating.
+<img src="docs/card-example.png" alt="The back of a finished card for 'deer'" width="360">
 
-Four decks run on it today — English, Spanish, German, Russian. Nothing in the stages names a
-language: what differs between two decks is a small config file, and
-[Adding a language](#adding-a-language) is the whole procedure.
+Almost nothing on a card is invented. A published dictionary decides what a word means. A
+published graded word list decides how hard it is. A frequency table decides which words you see
+first. A language model does only what no dictionary publishes: it rewrites a hard definition in
+simple words, and it translates.
 
-## What you need
+*The card above: definition from Wiktionary, examples from Tatoeba, level from the CEFR-J
+Wordlist, photo by World Wildlife on StockSnap (CC0).*
 
-- Python 3.11 or newer, and `pip install -r requirements.txt`.
-- Anki with the [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on. It opens a local
-  API while Anki is running, which is how the deck is pushed. Anki has to be open for that step.
-- `ANTHROPIC_API_KEY`, only if you want the model-backed stages answered for you. You can answer
-  them by hand instead, and then nothing is needed.
-- `PIXABAY_API_KEY`, optional. It adds one image source; without it that source turns itself off.
+## Which languages work
 
-## Building a deck
+You pick two languages: the **target** (the one you learn) and your **native** one (the one cards
+are translated into). Both are two-letter codes.
 
-Write the words into `words/<language>.txt`, one per line, then run:
+| | ready today | any other code |
+|---|---|---|
+| target | `en`, `es`, `de`, `ru` | builds, but stops at the dictionary step until that Wiktionary edition gets a parser — see [Adding a language](#adding-a-language) |
+| native | any language the model can translate into | — |
+| card headings | `ru`, `en`, `pl`, `ar` | headings stay in English |
+
+So an English speaker learning Spanish, a Pole learning German, or a Russian speaker learning
+English can start now.
+
+## Quick start
+
+The example builds a Spanish deck for an English speaker. Change the two codes for your pair.
+
+**1. Install.** You need Python 3.11 or newer.
 
 ```
-python build.py --target en --native ru
+git clone https://github.com/nistepanov/my_anki.git
+cd my_anki
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-`--target` is the language whose cards are being built, `--native` your own — the one the cards
-are glossed into. Both are two-letter codes. They default to `en` and `ru`, so a bare
-`python build.py` builds English for a Russian speaker. Naming the same language twice is refused
-rather than building a deck that glosses words into themselves.
+**2. Set up Anki.** Install [Anki](https://apps.ankiweb.net/) and the
+[AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on. AnkiConnect lets the build send
+cards to Anki. Anki must be open when you push. The build creates the note type and decks itself.
+
+**3. Get a model key (optional).** Some stages need a language model. Set `ANTHROPIC_API_KEY` and
+the build can answer them through the API. Without a key you answer them yourself — see
+[step 6](#the-build-will-stop-and-wait-for-you).
+
+```
+export ANTHROPIC_API_KEY=...
+export PIXABAY_API_KEY=...   # optional: one more picture source
+```
+
+**4. Write your words.** Put them into `words/<target>.txt`, one per line — here `words/es.txt`.
+The files in `words/` are the author's own lists; replace them with yours.
+
+```
+casa
+el perro
+correr<TAB>to run
+```
+
+A line can carry your own translation after a tab. It is optional, but it helps the build pick
+the right meaning of a word with several.
+
+**5. Build.**
+
+```
+python build.py --target es --native en
+```
+
+`--target` and `--native` default to `en` and `ru`. Add `--no-push` to build without Anki,
+`--images` to look for pictures, `--skip-media` to skip recordings too.
+
+**6. Answer the questions, then build again.** The first run stops at the stages that need a model
+and tells you which task directories to answer. With an API key:
+
+```
+python -m pipeline.llm data/es/sense_choice   # one call per directory the build names
+python build.py --target es --native en
+```
+
+Repeat until the build pushes the deck. A run after you add five words does only five words of
+work, so you can add words and run it again at any time.
+
+**7. Make the deck yours (optional).** Create `languages/<target>.<native>.json` — here
+`languages/es.en.json`:
+
+```json
+{
+  "deck": "Spanish",
+  "card_templates": ["recognition", "recall"]
+}
+```
+
+This file holds your choices: the deck name, which kinds of card you want, which levels you have
+already finished. See [facts about one learner](#languagestargetnativejson--facts-about-one-learner).
+The `*.ru.json` files in `languages/` are the author's; they apply only to Russian speakers.
+
+## More about the build
 
 The build runs the stages in order and each one skips what is already done, so a run after adding
 five words does five words of work. Nothing is thrown away and nothing already paid for is
 recomputed. A word already in the deck is ignored, so old lines can stay in the file.
 
-Useful flags: `--images` also looks for pictures, which is off by default because most words do
-not want one and the lookup is the slowest part of a run; `--skip-media` leaves recordings alone
-too; `--no-push` stops before Anki.
+Pictures are off by default because most words do not need one, and the picture search is the
+slowest part of a run.
 
 ### The build will stop and wait for you
 
@@ -124,6 +190,11 @@ free. Inside one level the order is by frequency, because a level holds well ove
 and the order inside it decides most of what you actually see. Levels you have finished can be
 named in the config; their cards are suspended rather than deleted and move to a deck of their own.
 
+<img src="docs/card-example.png" alt="The back of a recognition card for 'cottage'" width="360">
+
+The back of a recognition card, as `pipeline.preview` renders it. The photograph is CC0, by Markus
+Spiske on StockSnap.
+
 To see a card without opening Anki:
 
 ```
@@ -156,6 +227,7 @@ leaves the deck. `--design-only` pushes edited templates and styling without tou
 | `pipeline/` | the stages |
 | `data/` | everything generated, one directory per language |
 | `.agents/` | what the pipeline does and why, in prose |
+| `docs/` | pictures for this README |
 
 Nothing under `data/` is written by hand. It can be deleted and rebuilt, though the caches in it
 are what make a rebuild cheap, so deleting them means paying for every lookup again. It is not in
@@ -417,8 +489,39 @@ Polish and Arabic readers. Another reader gets them in English until a set is ad
 
 ## Licence and sources
 
-The code is MIT — see `LICENSE`. What it fetches is not covered by that. Every dictionary,
-corpus, graded list and image archive it queries has its own terms, and the media manifest
-records the licence and attribution for each picture, because that cannot be recovered once the
-file is downloaded. One source — the Spanish visual dictionary — states no licence at all, so it
-is for personal use only. Check the terms before you publish a deck built with this.
+The code is MIT — see `LICENSE`. Two things in the repository are not:
+
+- `words/en.txt` includes words from the [CEFR-J Wordlist](https://github.com/openlanguageprofiles/olp-en-cefrj)
+  (free to use with a citation: *The CEFR-J Wordlist Version 1.5, compiled by Yukio Tono, Tokyo
+  University of Foreign Studies*) and from the Octanove Vocabulary Profile C1/C2
+  ([CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)). That file is shared under
+  CC BY-SA 4.0.
+- `docs/card-example.png` shows text from Wiktionary (CC BY-SA 4.0) and Tatoeba (CC BY 2.0 FR),
+  and a CC0 photo.
+
+The repository holds no dictionary data, sentences, pictures or recordings. The build downloads
+them to `data/` on your machine, and each source keeps its own terms:
+
+| source | gives | terms |
+|---|---|---|
+| [Wiktionary](https://www.wiktionary.org/) | definitions, synonyms, verb forms, IPA | CC BY-SA 4.0 |
+| [Tatoeba](https://tatoeba.org/) | example sentences and translations | CC BY 2.0 FR |
+| [wordfreq](https://github.com/rspeer/wordfreq) | word frequency | code Apache 2.0, data CC BY-SA 4.0 |
+| CEFR-J, Octanove | English levels | see above |
+| [EFLLex, ELELex](https://cental.uclouvain.be/cefrlex/) | English and Spanish levels | CC BY-NC-SA 4.0 — non-commercial |
+| [Goethe-Institut word lists](https://www.goethe.de/) | German words and levels | copyrighted PDFs — personal use |
+| [rae-api.com](https://rae-api.com/) | Spanish definitions | unofficial API; content © Real Academia Española — personal use |
+| [Openverse](https://openverse.org/), [Pixabay](https://pixabay.com/) | pictures | per picture; the search asks only for commercial-use licences |
+| Wikipedia | pictures, as a fallback | per picture; the licence is not recorded — check before you share |
+| Wikimedia Commons | recordings | per file, mostly CC BY-SA |
+| Google Translate TTS, SpanishDict | synthesized pronunciation | unofficial endpoints, no licence — personal use |
+| Super Español | Spanish pictures and recordings | no licence stated — personal use |
+| Anthropic API | simple definitions, translations | your output, under Anthropic's terms |
+
+The media manifest (`data/<target>/media.tsv`) records the licence and author of each picture
+where the source gives them.
+
+**For your own study, all of this is fine.** If you want to **share a built deck**, it is a
+different matter: the deck then carries CC BY-SA text from Wiktionary, so it must be shared under
+CC BY-SA with credits. Leave out the personal-use sources above, and the non-commercial levels if
+you share it for money.
