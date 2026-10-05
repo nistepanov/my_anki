@@ -18,6 +18,7 @@ cache: it is never re-fetched once it exists on disk under its final name.
 import argparse
 import concurrent.futures
 import enum
+import html
 import json
 import pathlib
 import random
@@ -96,9 +97,16 @@ OPENVERSE_SEARCH_URL_TEMPLATE = (
     f'https://{OPENVERSE_HOST}/v1/images/?q={{query}}&license_type=commercial&page_size={{page_size}}'
 )
 WIKIPEDIA_PAGEIMAGE_URL_TEMPLATE = (
-    'https://{host}/w/api.php?action=query&format=json&prop=pageimages&piprop=original'
+    'https://{host}/w/api.php?action=query&format=json&prop=pageimages&piprop=original|name'
     '&titles={title}&redirects=1'
 )
+# Asked of the article's own wiki, which also answers for files kept on Commons.
+WIKIPEDIA_FILE_LICENCE_URL_TEMPLATE = (
+    'https://{host}/w/api.php?action=query&format=json&prop=imageinfo&iiprop=extmetadata|url'
+    '&iiextmetadatafilter=LicenseShortName|Artist|NonFree&titles=File:{filename}'
+)
+WIKIPEDIA_FILE_CACHE_PREFIX = 'file:'
+HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
 
 # Matches a pron-graf parameter name such as "1audio1", "audio2" or the plain "audio" a page
 # uses when it carries only one recording — a numeric prefix marks which recording it is and a
@@ -667,41 +675,98 @@ class WikipediaImageProvider:
         *, lemma: str, language: language_config.LanguageConfig, cache: Cache,
         throttles: HostThrottleRegistry, stats: Stats,
     ) -> typing.Optional[ImageResult]:
-        cached = cache.load(provider=WikipediaImageProvider.NAME, identifier=lemma)
-        if cached is not None:
-            if not cached.get('found'):
-                return None
-            source_url = cached.get('url', '')
-        else:
-            url = WIKIPEDIA_PAGEIMAGE_URL_TEMPLATE.format(host=language.wikipedia_host, title=urllib.parse.quote(lemma))
-            response = HttpClient.get_text(url=url, throttle=throttles.for_host(host=language.wikipedia_host), stats=stats)
-            if response.status == FetchStatus.FAILED:
-                return None
-            if response.status == FetchStatus.NOT_FOUND or not response.text:
-                cache.store(provider=WikipediaImageProvider.NAME, identifier=lemma, payload={'found': False})
-                return None
-            body = json.loads(response.text)
-            source_url = WikipediaImageProvider._extract_source(body=body)
-            cache.store(
-                provider=WikipediaImageProvider.NAME, identifier=lemma,
-                payload={'found': bool(source_url), 'url': source_url},
-            )
-            if not source_url:
-                return None
-
-        downloaded = MediaDownloader.fetch_and_validate_image(url=source_url, throttles=throttles, stats=stats)
+        page_image = WikipediaImageProvider._page_image(
+            lemma=lemma, language=language, cache=cache, throttles=throttles, stats=stats,
+        )
+        if page_image is None:
+            return None
+        licence = WikipediaImageProvider._file_licence(
+            filename=page_image['name'], language=language, cache=cache, throttles=throttles, stats=stats,
+        )
+        # A non-free file is used on Wikipedia under fair use, which does not reach a flashcard.
+        if licence is None or licence['non_free']:
+            return None
+        downloaded = MediaDownloader.fetch_and_validate_image(url=page_image['url'], throttles=throttles, stats=stats)
         if downloaded is None:
             return None
         content, extension = downloaded
-        return ImageResult(content=content, extension=extension, source=WikipediaImageProvider.NAME, license='', attribution='')
+        return ImageResult(
+            content=content, extension=extension, source=WikipediaImageProvider.NAME,
+            license=licence['license'], attribution=licence['attribution'],
+        )
 
     @staticmethod
-    def _extract_source(*, body: dict) -> str:
+    def _page_image(
+        *, lemma: str, language: language_config.LanguageConfig, cache: Cache,
+        throttles: HostThrottleRegistry, stats: Stats,
+    ) -> typing.Optional[dict]:
+        """The article's lead image as its URL and file name."""
+        cached = cache.load(provider=WikipediaImageProvider.NAME, identifier=lemma)
+        # An entry cached before file names were kept has no name to look the licence up by.
+        if cached is not None and (not cached.get('found') or cached.get('name')):
+            return {'url': cached['url'], 'name': cached['name']} if cached.get('found') else None
+        url = WIKIPEDIA_PAGEIMAGE_URL_TEMPLATE.format(host=language.wikipedia_host, title=urllib.parse.quote(lemma))
+        response = HttpClient.get_text(url=url, throttle=throttles.for_host(host=language.wikipedia_host), stats=stats)
+        if response.status == FetchStatus.FAILED:
+            return None
+        if response.status == FetchStatus.NOT_FOUND or not response.text:
+            cache.store(provider=WikipediaImageProvider.NAME, identifier=lemma, payload={'found': False})
+            return None
+        page_image = WikipediaImageProvider._extract_page_image(body=json.loads(response.text))
+        cache.store(
+            provider=WikipediaImageProvider.NAME, identifier=lemma,
+            payload={'found': page_image is not None, **(page_image or {})},
+        )
+        return page_image
+
+    @staticmethod
+    def _extract_page_image(*, body: dict) -> typing.Optional[dict]:
         for page in body.get('query', {}).get('pages', {}).values():
             original = page.get('original')
-            if original and original.get('source'):
-                return original['source']
-        return ''
+            if original and original.get('source') and page.get('pageimage'):
+                return {'url': original['source'], 'name': page['pageimage']}
+        return None
+
+    @staticmethod
+    def _file_licence(
+        *, filename: str, language: language_config.LanguageConfig, cache: Cache,
+        throttles: HostThrottleRegistry, stats: Stats,
+    ) -> typing.Optional[dict]:
+        """The file's licence, author and free status; None when the wiki could not be asked."""
+        identifier = f'{WIKIPEDIA_FILE_CACHE_PREFIX}{filename}'
+        cached = cache.load(provider=WikipediaImageProvider.NAME, identifier=identifier)
+        if cached is not None:
+            return cached
+        url = WIKIPEDIA_FILE_LICENCE_URL_TEMPLATE.format(host=language.wikipedia_host, filename=urllib.parse.quote(filename))
+        response = HttpClient.get_text(url=url, throttle=throttles.for_host(host=language.wikipedia_host), stats=stats)
+        if response.status != FetchStatus.FOUND or not response.text:
+            return None
+        licence = WikipediaImageProvider._extract_licence(body=json.loads(response.text))
+        cache.store(provider=WikipediaImageProvider.NAME, identifier=identifier, payload=licence)
+        return licence
+
+    @staticmethod
+    def _extract_licence(*, body: dict) -> dict:
+        """An unknown licence counts as non-free, so only a file with a stated licence lands."""
+        for page in body.get('query', {}).get('pages', {}).values():
+            for info in page.get('imageinfo') or []:
+                metadata = info.get('extmetadata') or {}
+                licence = WikipediaImageProvider._metadata_text(metadata=metadata, field='LicenseShortName')
+                artist = WikipediaImageProvider._metadata_text(metadata=metadata, field='Artist')
+                landing_url = (info.get('descriptionurl') or '').strip()
+                non_free = WikipediaImageProvider._metadata_text(metadata=metadata, field='NonFree').lower() in ('true', '1')
+                return {
+                    'license': licence,
+                    'attribution': ' — '.join(part for part in (artist, landing_url) if part),
+                    'non_free': non_free or not licence,
+                }
+        return {'license': '', 'attribution': '', 'non_free': True}
+
+    @staticmethod
+    def _metadata_text(*, metadata: dict, field: str) -> str:
+        """A metadata value as plain text; the wiki returns some of them as HTML."""
+        value = str((metadata.get(field) or {}).get('value') or '')
+        return re.sub(r'\s+', ' ', html.unescape(HTML_TAG_PATTERN.sub('', value))).strip()
 
 
 class ManifestStore:

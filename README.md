@@ -512,7 +512,7 @@ them to `data/` on your machine, and each source keeps its own terms:
 | [Goethe-Institut word lists](https://www.goethe.de/) | German words and levels | copyrighted PDFs — personal use |
 | [rae-api.com](https://rae-api.com/) | Spanish definitions | unofficial API; content © Real Academia Española — personal use |
 | [Openverse](https://openverse.org/), [Pixabay](https://pixabay.com/) | pictures | per picture; the search asks only for commercial-use licences |
-| Wikipedia | pictures, as a fallback | per picture; the licence is not recorded — check before you share |
+| Wikipedia | pictures, as a fallback | per picture; free pictures only, licence and author recorded |
 | Wikimedia Commons | recordings | per file, mostly CC BY-SA |
 | Google Translate TTS, SpanishDict | synthesized pronunciation | unofficial endpoints, no licence — personal use |
 | Super Español | Spanish pictures and recordings | no licence stated — personal use |
