@@ -45,6 +45,9 @@ OPEN_IMAGE_SOURCES = frozenset({'openverse', 'wikipedia'})
 FREE_IMAGE_LICENCE_PATTERN = re.compile(r'^(cc0|pdm|public domain|(cc[ -])?by(-sa)?([ -]\d.*)?)$', re.IGNORECASE)
 
 LEVEL_TAG_PREFIX = 'cefr::'
+# Tags about the author's own study, not about the word.
+PERSONAL_TAGS = frozenset({'studied'})
+PERSONAL_TAG_PREFIXES = ('source::',)
 PRONUNCIATION_FIELD = 'Pronunciation'
 SPOKEN_FIELD = 'Word'
 CREDITS_FIELD = 'Credits'
@@ -84,6 +87,7 @@ class SharedRow:
         credits: typing.List[str] = []
         # Dictionary examples are not on the card, and their source is not recorded per sentence.
         cleaned['dictionary_examples'] = ''
+        cleaned['tags'] = SharedRow.public_tags(tags=row.get('tags', ''))
         SharedRow._keep_definition(row=cleaned, language=language, credits=credits, stats=stats)
         SharedRow._keep_examples(row=cleaned, language=language, credits=credits, stats=stats)
         SharedRow._keep_level(row=cleaned, credits=credits, stats=stats)
@@ -133,6 +137,13 @@ class SharedRow:
         row['cefr'] = ''
         row['tags'] = ' '.join(tag for tag in row.get('tags', '').split() if not tag.startswith(LEVEL_TAG_PREFIX))
         stats.levels_dropped += 1
+
+    @staticmethod
+    def public_tags(*, tags: str) -> str:
+        return ' '.join(
+            tag for tag in tags.split()
+            if tag not in PERSONAL_TAGS and not tag.startswith(PERSONAL_TAG_PREFIXES)
+        )
 
     @staticmethod
     def _credit(*, credits: typing.List[str], label: str, credit: str) -> None:
