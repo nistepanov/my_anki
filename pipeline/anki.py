@@ -323,12 +323,16 @@ class DeckBuilder:
             print(f"added card templates {missing} to {name!r}")
 
     def field_names(self) -> typing.List[str]:
+        return self.note_type_fields(language=self._language, design=self._design)
+
+    @staticmethod
+    def note_type_fields(*, language: language_config.LanguageConfig, design: CardDesign) -> typing.List[str]:
         fields = [
-            *self._language.note_fields().values(),
-            *self._language.computed_fields,
-            *self._language.media_fields,
+            *language.note_fields().values(),
+            *language.computed_fields,
+            *language.media_fields,
         ]
-        return fields + [name for name in self._design.referenced_fields if name not in fields]
+        return fields + [name for name in design.referenced_fields if name not in fields]
 
 
 class NotePusher:
@@ -481,20 +485,24 @@ class NotePusher:
 
     def build_fields(self, *, row: dict) -> typing.Dict[str, str]:
         """Media fields are left out so a re-run never wipes audio or images already added."""
-        fields = {field: row.get(column, '') for column, field in self._language.note_fields().items()}
-        fields['ExamplesHtml'] = self.render_examples(row=row, language=self._language)
-        fields['ContextHtml'] = self.render_context(row=row, language=self._language)
-        fields['ContextGlossHtml'] = self.render_context_gloss(row=row, language=self._language)
-        fields['InflectionHtml'] = self.render_inflection(row=row, language=self._language)
-        fields['Hint'] = self.render_hint(row=row)
-        fields['SynonymsHtml'] = self.render_related(
-            row=row, column='synonyms', language=self._language, keep=self.plain_synonyms,
+        return self.render_fields(row=row, language=self._language)
+
+    @staticmethod
+    def render_fields(*, row: dict, language: language_config.LanguageConfig) -> typing.Dict[str, str]:
+        fields = {field: row.get(column, '') for column, field in language.note_fields().items()}
+        fields['ExamplesHtml'] = NotePusher.render_examples(row=row, language=language)
+        fields['ContextHtml'] = NotePusher.render_context(row=row, language=language)
+        fields['ContextGlossHtml'] = NotePusher.render_context_gloss(row=row, language=language)
+        fields['InflectionHtml'] = NotePusher.render_inflection(row=row, language=language)
+        fields['Hint'] = NotePusher.render_hint(row=row)
+        fields['SynonymsHtml'] = NotePusher.render_related(
+            row=row, column='synonyms', language=language, keep=NotePusher.plain_synonyms,
         )
-        fields['FigurativeHtml'] = self.render_related(
-            row=row, column='synonyms', language=self._language, keep=self.figurative_synonyms,
+        fields['FigurativeHtml'] = NotePusher.render_related(
+            row=row, column='synonyms', language=language, keep=NotePusher.figurative_synonyms,
         )
-        fields['AntonymsHtml'] = self.render_related(row=row, column='antonyms', language=self._language)
-        fields['OtherSensesHtml'] = self.render_other_senses(row=row, language=self._language)
+        fields['AntonymsHtml'] = NotePusher.render_related(row=row, column='antonyms', language=language)
+        fields['OtherSensesHtml'] = NotePusher.render_other_senses(row=row, language=language)
         return fields
 
     def fields_with_media(self, *, row: dict, present: typing.Dict[str, str]) -> typing.Dict[str, str]:
