@@ -6,3 +6,5 @@ anthropic>=1.2
 # Frequency ranks: they order the queue inside a level, and decide which words a learner is
 # assumed to know already when a sentence is judged readable.
 wordfreq>=3.1
+# Writes the shareable deck file; only the export stage needs it.
+genanki>=0.13

@@ -405,6 +405,21 @@ Front and back templates plus styling, kept in the note type. Worth doing last, 
 is visible: what looks fine with a one-line definition falls apart with a four-line one. Design for
 the longest row in the deck, not the average, and check both light and dark mode.
 
+### 11. Export a deck others may have
+
+The personal deck mixes open content with content that may be studied but not passed on: a
+vocabulary app's sentences and pictures, a publisher's word lists, unofficial speech endpoints.
+Exporting the personal deck from Anki would hand all of that on.
+
+So a shared deck is written as its own package file, straight from the table. A field reaches it
+only when its recorded source is on an open list; an unknown source counts as closed. This is why
+every stage must record where a field came from — a field with no source cannot be shared.
+Recordings never go in; the card asks Anki's text-to-speech instead. Each note carries its own
+credits, because CC BY material needs the author named next to the work.
+
+The shared note type and decks get their own names and stable ids, so the author can import the
+file without touching the personal deck, and a later export updates an earlier import.
+
 ## A stage's answer files outlive the question they answered
 
 Every model-backed stage works the same way: it writes numbered task files, someone answers them

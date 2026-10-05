@@ -216,6 +216,29 @@ this pipeline does not control — a text-to-speech pass inside Anki, a hand-pic
 `--replace-media` makes the manifest win instead, which is how a picture judged wrong actually
 leaves the deck. `--design-only` pushes edited templates and styling without touching notes.
 
+## Sharing a deck
+
+Your own deck holds content you may study but not give away. The export writes a separate
+`.apkg` file with only the parts whose source allows sharing:
+
+```
+pip install genanki
+python -m pipeline.export --target en --deck "English vocabulary"
+```
+
+The file lands in `data/<target>/`. Anki is not needed, and your own collection is not touched.
+
+- A definition, an example set or a level stays only if its source is open — Wiktionary, Tatoeba,
+  the model, the open CEFR lists. Anything with an unknown source is left out.
+- A picture stays only if it came from Openverse or Wikipedia under CC0, public domain, CC BY or
+  CC BY-SA.
+- No recordings go in. The card reads the word with Anki's built-in text-to-speech.
+- Every note names its sources in a `Credits` field, and the deck description states the licence:
+  CC BY-SA 4.0, or CC BY-NC-SA 4.0 when a level comes from a non-commercial list.
+
+The export prints how much it left out. Expect gaps: a word whose sentences came from a
+vocabulary app or a book reaches the shared deck without examples.
+
 ## Where things live
 
 | | |
@@ -521,7 +544,5 @@ them to `data/` on your machine, and each source keeps its own terms:
 The media manifest (`data/<target>/media.tsv`) records the licence and author of each picture
 where the source gives them.
 
-**For your own study, all of this is fine.** If you want to **share a built deck**, it is a
-different matter: the deck then carries CC BY-SA text from Wiktionary, so it must be shared under
-CC BY-SA with credits. Leave out the personal-use sources above, and the non-commercial levels if
-you share it for money.
+**For your own study, all of this is fine.** To share a deck, do not export it from Anki — use
+[Sharing a deck](#sharing-a-deck), which leaves out everything you may not pass on.
