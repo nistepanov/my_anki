@@ -63,6 +63,7 @@ TTS_LOCALES = {
 ANKI_ID_FLOOR = 1 << 30
 ANKI_ID_SPAN = 1 << 30
 EXPORT_FILE_SUFFIX = '.apkg'
+BOOK_SUBDECK_COLUMN = 'subdeck'
 
 
 @dataclasses.dataclass
@@ -271,11 +272,21 @@ class SharedDeckWriter:
         )
 
 
-def export(*, language: language_config.LanguageConfig, deck_name: str, output: pathlib.Path) -> ExportStats:
+def export(
+    *,
+    language: language_config.LanguageConfig,
+    deck_name: str,
+    output: pathlib.Path,
+    with_images: bool = True,
+    with_books: bool = True,
+) -> ExportStats:
     rows = language_config.TsvFile.read(language.data_directory(root=language_config.PROJECT_ROOT) / 'cards.tsv')
     rows = [row for row in rows if not row.get(anki.MERGED_COLUMN, '').strip()]
+    if not with_books:
+        # A book's words sit in a subdeck named for the book.
+        rows = [row for row in rows if not row.get(BOOK_SUBDECK_COLUMN, '').strip()]
     stats = ExportStats()
-    media = SharedMedia.load(language=language)
+    media = SharedMedia.load(language=language) if with_images else SharedMedia(directory=pathlib.Path(), entries={})
     writer = SharedDeckWriter(language=language, deck_name=deck_name)
     for row in rows:
         cleaned, credits = SharedRow.clean(row=row, language=language, stats=stats)
@@ -292,6 +303,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--deck', default=None, help="Deck name in the shared file (default: '<Target> vocabulary')")
     parser.add_argument('--output', type=pathlib.Path, default=None, help="Where to write the .apkg file")
+    parser.add_argument('--no-images', action='store_true', help="Leave every picture out")
+    parser.add_argument('--no-books', action='store_true', help="Leave out the words taken from books")
     language_config.add_language_arguments(parser)
     arguments = parser.parse_args()
 
@@ -299,7 +312,13 @@ def main() -> None:
     deck_name = arguments.deck or f'{language.target_name} vocabulary'
     default_output = language.data_directory(root=language_config.PROJECT_ROOT) / f'{deck_name}{EXPORT_FILE_SUFFIX}'
     output = arguments.output or default_output
-    stats = export(language=language, deck_name=deck_name, output=output)
+    stats = export(
+        language=language,
+        deck_name=deck_name,
+        output=output,
+        with_images=not arguments.no_images,
+        with_books=not arguments.no_books,
+    )
     print(f"wrote {output} — {stats.notes} notes, {stats.images_kept} pictures")
     print(
         f"left out: {stats.definitions_dropped} definitions, {stats.examples_dropped} example sets, "
