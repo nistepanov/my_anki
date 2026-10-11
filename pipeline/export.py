@@ -64,6 +64,8 @@ ANKI_ID_FLOOR = 1 << 30
 ANKI_ID_SPAN = 1 << 30
 EXPORT_FILE_SUFFIX = '.apkg'
 BOOK_SUBDECK_COLUMN = 'subdeck'
+# Tatoeba sentences kept beside a closed example set, for the shared deck only.
+OPEN_EXAMPLES_PREFIX = 'open_'
 
 
 @dataclasses.dataclass
@@ -124,7 +126,25 @@ class SharedRow:
         # The sentence card is built on one of these sentences, so it goes with them.
         for column in (*language.example_columns, 'context_index', 'context_target'):
             row[column] = ''
+        if SharedRow._use_open_examples(row=row, language=language):
+            SharedRow._credit(credits=credits, label="Examples", credit=OPEN_EXAMPLE_SOURCES['tatoeba'])
+            return
         stats.examples_dropped += 1
+
+    @staticmethod
+    def _use_open_examples(*, row: dict, language: language_config.LanguageConfig) -> bool:
+        """Put in sentences found for the shared deck alone, where the personal deck's own may not be shared."""
+        target_column, native_column = (
+            language.examples_column(suffix=suffix) for suffix in (language.target, language.native)
+        )
+        open_target = row.get(f'{OPEN_EXAMPLES_PREFIX}{target_column}', '')
+        open_native = row.get(f'{OPEN_EXAMPLES_PREFIX}{native_column}', '')
+        # Sentences without the reader's translation are not worth a card.
+        if not open_target or not open_native:
+            return False
+        row[target_column] = open_target
+        row[native_column] = open_native
+        return True
 
     @staticmethod
     def _keep_level(*, row: dict, credits: typing.List[str], stats: ExportStats) -> None:
