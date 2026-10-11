@@ -207,7 +207,7 @@ class SharedDeckWriter:
 
     def _build_model(self) -> genanki.Model:
         # Its own name, so importing the shared deck never touches the author's note type.
-        name = f'{self._language.note_type_name} (shared)'
+        name = f'{self._language.note_type_name} (shared{self.reader_suffix})'
         return genanki.Model(
             model_id=self.stable_id(name=name),
             name=name,
@@ -238,13 +238,13 @@ class SharedDeckWriter:
             model=self._model,
             fields=[fields.get(field, '') for field in self._fields],
             tags=row.get('tags', '').split(),
-            guid=genanki.guid_for(row['key']),
+            guid=genanki.guid_for(row['key'], *self.reader_identity),
         )
         self._deck_for(name=f'{self._deck_name}::{level}').add_note(note)
 
     def _deck_for(self, *, name: str) -> genanki.Deck:
         if name not in self._decks:
-            self._decks[name] = genanki.Deck(deck_id=self.stable_id(name=name), name=name)
+            self._decks[name] = genanki.Deck(deck_id=self.stable_id(name=f'{name}{self.reader_suffix}'), name=name)
         return self._decks[name]
 
     def write(self, *, path: pathlib.Path, media_files: typing.Sequence[pathlib.Path], description: str) -> None:
@@ -253,6 +253,20 @@ class SharedDeckWriter:
         path.parent.mkdir(parents=True, exist_ok=True)
         package = genanki.Package(list(self._decks.values()), media_files=[str(file) for file in media_files])
         package.write_to_file(str(path))
+
+    @property
+    def reader_identity(self) -> typing.Tuple[str, ...]:
+        """Ids for another reader's deck differ, so importing it never overwrites the default reader's notes.
+
+        The default reader has no suffix, which keeps the ids of decks already shared.
+        """
+        if self._language.native == language_config.DEFAULT_NATIVE:
+            return ()
+        return (self._language.native,)
+
+    @property
+    def reader_suffix(self) -> str:
+        return ''.join(f', {native}' for native in self.reader_identity)
 
     @staticmethod
     def stable_id(*, name: str) -> int:
@@ -279,12 +293,15 @@ def export(
     output: pathlib.Path,
     with_images: bool = True,
     with_books: bool = True,
+    levels: typing.Optional[typing.Collection[str]] = None,
 ) -> ExportStats:
     rows = language_config.TsvFile.read(language.data_directory(root=language_config.PROJECT_ROOT) / 'cards.tsv')
     rows = [row for row in rows if not row.get(anki.MERGED_COLUMN, '').strip()]
     if not with_books:
         # A book's words sit in a subdeck named for the book.
         rows = [row for row in rows if not row.get(BOOK_SUBDECK_COLUMN, '').strip()]
+    if levels is not None:
+        rows = [row for row in rows if row.get('cefr', '').strip() in levels]
     stats = ExportStats()
     media = SharedMedia.load(language=language) if with_images else SharedMedia(directory=pathlib.Path(), entries={})
     writer = SharedDeckWriter(language=language, deck_name=deck_name)
@@ -305,6 +322,7 @@ def main() -> None:
     parser.add_argument('--output', type=pathlib.Path, default=None, help="Where to write the .apkg file")
     parser.add_argument('--no-images', action='store_true', help="Leave every picture out")
     parser.add_argument('--no-books', action='store_true', help="Leave out the words taken from books")
+    parser.add_argument('--levels', nargs='+', default=None, help="Keep only these CEFR levels, e.g. A1 A2 B1")
     language_config.add_language_arguments(parser)
     arguments = parser.parse_args()
 
@@ -318,6 +336,7 @@ def main() -> None:
         output=output,
         with_images=not arguments.no_images,
         with_books=not arguments.no_books,
+        levels=arguments.levels,
     )
     print(f"wrote {output} — {stats.notes} notes, {stats.images_kept} pictures")
     print(
