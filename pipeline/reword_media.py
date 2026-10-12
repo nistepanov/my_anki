@@ -38,12 +38,16 @@ CYRILLIC_TRANSLITERATION = {
 # (e.g. que/qué, como/cómo), so folding the accent away entirely would collide them.
 LATIN_ACCENT_TRANSLITERATION = {
     'á': 'aa', 'é': 'ee', 'í': 'ii', 'ó': 'oo', 'ú': 'uu', 'ñ': 'nn', 'ü': 'uu',
+    # German has umlaut-only pairs too (schon/schön, zahlen/zählen).
+    'ä': 'aa', 'ö': 'oo',
     # Spelled out rather than dropped, which is what stripping accents does to it.
     'ß': 'ss',
 }
 TRANSLITERATION = {**CYRILLIC_TRANSLITERATION, **LATIN_ACCENT_TRANSLITERATION}
 SLUG_COLLAPSE_PATTERN = re.compile(r'[^a-z0-9]+')
 SLUG_MAX_LENGTH = 80
+# Marks a prefix or suffix entry, whose edge hyphen the slug would drop: erst- vs erst.
+AFFIX_MARKER = 'affix'
 # Appended when a key holds letters no table above describes. Six hex digits keep a filename
 # readable and still make a clash between two keys of one deck vanishingly unlikely.
 FINGERPRINT_LENGTH = 6
@@ -130,7 +134,12 @@ class Slugger:
     def slug(cls, *, key: str, language_code: str) -> str:
         collapsed = SLUG_COLLAPSE_PATTERN.sub('-', cls.transliterate(key)).strip('-')
         trimmed = collapsed[:SLUG_MAX_LENGTH].strip('-')
-        return f'{language_code}-{trimmed}{cls._fingerprint(key=key)}'
+        return f'{language_code}-{trimmed}{cls._affix_tail(key=key)}{cls._fingerprint(key=key)}'
+
+    @staticmethod
+    def _affix_tail(*, key: str) -> str:
+        stripped = key.strip()
+        return f'-{AFFIX_MARKER}' if stripped.startswith('-') or stripped.endswith('-') else ''
 
     @classmethod
     def _fingerprint(cls, *, key: str) -> str:
