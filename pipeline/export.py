@@ -50,6 +50,7 @@ PERSONAL_TAGS = frozenset({'studied'})
 PERSONAL_TAG_PREFIXES = ('source::',)
 PRONUNCIATION_FIELD = 'Pronunciation'
 SPOKEN_FIELD = 'Word'
+TTS_FALLBACK_SCRIPT = language_config.PROJECT_ROOT / anki.TEMPLATE_DIRECTORY / 'tts_fallback.js'
 CREDITS_FIELD = 'Credits'
 SHARE_ALIKE_LICENCE = "CC BY-SA 4.0"
 NON_COMMERCIAL_LICENCE = "CC BY-NC-SA 4.0"
@@ -246,10 +247,14 @@ class SharedDeckWriter:
     def speak_with_tts(self, *, text: str) -> str:
         """The phone's own voice reads the word, so the deck carries no recording."""
         locale = TTS_LOCALES.get(self._language.target, self._language.target)
+        spoken = f'<span class="tts-fallback">{{{{tts {locale}:{SPOKEN_FIELD}}}}}</span>'
+        if f'{{{{{PRONUNCIATION_FIELD}}}}}' in text:
+            # AnkiWeb cannot speak and shows the tag as text; the script fixes that card by card.
+            text += f'\n<script>{TTS_FALLBACK_SCRIPT.read_text(encoding="utf-8")}</script>'
         return (
             text.replace(f'{{{{#{PRONUNCIATION_FIELD}}}}}', f'{{{{#{SPOKEN_FIELD}}}}}')
             .replace(f'{{{{/{PRONUNCIATION_FIELD}}}}}', f'{{{{/{SPOKEN_FIELD}}}}}')
-            .replace(f'{{{{{PRONUNCIATION_FIELD}}}}}', f'{{{{tts {locale}:{SPOKEN_FIELD}}}}}')
+            .replace(f'{{{{{PRONUNCIATION_FIELD}}}}}', spoken)
         )
 
     def add(self, *, row: dict, fields: typing.Dict[str, str]) -> None:
