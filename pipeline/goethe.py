@@ -44,6 +44,7 @@ UMLAUTS = {'au': 'äu', 'a': 'ä', 'o': 'ö', 'u': 'ü'}
 PLURAL_LABEL = 'plural'
 PLURAL_SUFFIX_LABEL = 'plural_suffix'
 FEMININE_LABEL = 'feminine'
+REFLEXIVE_WORDS = frozenset({'sich'})
 VERB_LABELS_BY_LENGTH = {
     3: ('present', 'perfect'),
     4: ('present', 'preterite', 'perfect'),
@@ -67,6 +68,20 @@ REGIONAL_MARKERS = ('A', 'CH')
 PLURAL_ONLY_MARKER = 'Pl.'
 # A hyphen before one of these stands for a compound left out, not for a line break.
 SUSPENDED_HYPHEN_WORDS = frozenset({'und', 'oder', 'bis', 'sowie'})
+# Marks after which a headword runs on to the next line: more forms, a pair, a regional form.
+CONTINUATION_ENDINGS = (',', '/', '→', ':', ';')
+CONTINUATION_START_PATTERN = re.compile(r'^(?:→|\(|/|(?:D|A|CH)[,:])')
+FIRST_EXAMPLE_MARKER = '1.'
+SENTENCE_ENDINGS = ('.', '!', '?')
+# A verb entry opens with its infinitive and a comma.
+VERB_START_PATTERN = re.compile(r'^[a-zäöü]\S*,')
+# How many letters a feminine shares with its masculine: Lehrer/Lehrerin, Arzt/Ärztin.
+PAIR_STEM_LENGTH = 3
+UMLAUT_FOLDING = str.maketrans({'ä': 'a', 'ö': 'o', 'ü': 'u'})
+ARTICLE_START_PATTERN = re.compile(r'^(?:der|die|das)(?:/(?:der|die|das))?\s')
+# An optional part printed in brackets inside a word, as in (Back-)Ofen; the bracket goes, the
+# space before it stays.
+OPTIONAL_PART_PATTERN = re.compile(r'\([\w-]+-\)(?=\w)')
 # The plural dash of an entry printed wide enough to spill into the example column.
 EXAMPLE_MIN_LETTERS = 3
 
@@ -150,6 +165,8 @@ LISTS = (
 ENTRY_LIST_LEVEL = 'B1'
 # Two blocks belong to the same entry when the printer put them on the same line.
 SAME_LINE_TOLERANCE = 3.0
+# An entry's examples may start one printed line below its headword.
+LINE_HEIGHT = 11.0
 
 
 class Entry(typing.NamedTuple):
@@ -157,6 +174,14 @@ class Entry(typing.NamedTuple):
 
     headword: str
     examples: typing.List[str]
+
+
+class Block(typing.NamedTuple):
+    """A headword with the example lines printed beside it, or example lines on their own."""
+
+    top: float
+    headword: str
+    example_lines: typing.List[typing.Tuple[float, str]]
 
 
 class PdfExtractor:
@@ -204,36 +229,63 @@ class PdfExtractor:
         words belongs to whichever entry the printer put on the same line, and to the entry above
         it when the printer wrapped it onto its own.
         """
+        blocks = PdfExtractor._blocks(page=page, column=column, layout=layout)
         entries: typing.List[Entry] = []
         positions: typing.List[float] = []
-        for top, headword, example in PdfExtractor._blocks(page=page, column=column, layout=layout):
-            if headword:
-                entries.append(Entry(headword=headword, examples=PdfExtractor._split_examples(text=example)))
-                positions.append(top)
+        for block in blocks:
+            if block.headword:
+                example = PdfExtractor._join_wrapped(lines=[text for _, text in block.example_lines])
+                entries.append(Entry(headword=block.headword, examples=PdfExtractor._split_examples(text=example)))
+                positions.append(block.top)
+        # A second pass: an example block often starts a little above its own headword, so it
+        # is sorted first and would land on the previous entry.
+        for block in blocks:
+            if block.headword or not block.example_lines or not entries:
                 continue
-            if not example or not entries:
-                continue
-            index = PdfExtractor._entry_at(positions=positions, top=top)
-            entries[index].examples.extend(PdfExtractor._split_examples(text=example))
+            for index, lines in PdfExtractor._lines_by_entry(block=block, positions=positions).items():
+                example = PdfExtractor._join_wrapped(lines=lines)
+                entries[index].examples.extend(PdfExtractor._split_examples(text=example))
         return entries
+
+    @staticmethod
+    def _lines_by_entry(
+        *, block: Block, positions: typing.List[float],
+    ) -> typing.Dict[int, typing.List[str]]:
+        """Share one example block between entries: a new sentence on an entry's line is its own."""
+        owner = PdfExtractor._entry_at(positions=positions, top=block.example_lines[0][0])
+        by_entry: typing.Dict[int, typing.List[str]] = {}
+        previous = ''
+        for top, text in block.example_lines:
+            beside = PdfExtractor._entry_on_line(positions=positions, top=top)
+            opens_sentence = not previous or (
+                previous.endswith(SENTENCE_ENDINGS) and (text[:1].isupper() or text[:1].isdigit())
+            )
+            if beside is not None and opens_sentence:
+                owner = beside
+            if owner is not None:
+                by_entry.setdefault(owner, []).append(text)
+            previous = text
+        return by_entry
 
     @staticmethod
     def _blocks(
         *, page: ElementTree.Element, column: Column, layout: ListLayout,
-    ) -> typing.List[typing.Tuple[float, str, str]]:
-        """Each block of this column as (top, headword text, example text).
+    ) -> typing.List[Block]:
+        """Each entry or example block of this column, top to bottom.
 
         Splitting by word rather than by block is what makes this work: the extractor merges a
         short headword with its example often enough that a block-level rule would read the two
         as one headword and lose the example.
         """
         tag = 'line' if layout.lines_are_entries else 'block'
+        example_starts = PdfExtractor._example_starts(page=page, column=column)
         units = []
         for unit in page.iter(XHTML_NAMESPACE + tag):
             top = float(unit.get('yMin'))
             if not layout.body_top <= top <= layout.body_bottom:
                 continue
-            headword_lines, example_lines = [], []
+            headword_lines: typing.List[typing.Tuple[float, str]] = []
+            example_lines: typing.List[typing.Tuple[float, str]] = []
             for line in unit.iter(XHTML_NAMESPACE + 'line') if tag == 'block' else (unit,):
                 headword_words, example_words = [], []
                 for word in line.iter(XHTML_NAMESPACE + 'word'):
@@ -245,16 +297,114 @@ class PdfExtractor:
                         continue
                     (headword_words if left < column.examples_start else example_words).append(text)
                 if headword_words:
-                    headword_lines.append(' '.join(headword_words))
+                    headword_lines.append((float(line.get('yMin')), ' '.join(headword_words)))
                 if example_words:
-                    example_lines.append(' '.join(example_words))
-            if headword_lines or example_lines:
-                units.append((
-                    top,
-                    PdfExtractor._join_wrapped(lines=headword_lines),
-                    PdfExtractor._join_wrapped(lines=example_lines),
+                    example_lines.append((float(line.get('yMin')), ' '.join(example_words)))
+            groups = PdfExtractor._group_entries(lines=headword_lines, example_starts=example_starts)
+            if not groups:
+                if example_lines:
+                    units.append(Block(top=top, headword='', example_lines=example_lines))
+                continue
+            lines_by_group: typing.List[typing.List[typing.Tuple[float, str]]] = [[] for _ in groups]
+            for example_line in example_lines:
+                owner = 0
+                for index, (group_top, _) in enumerate(groups):
+                    if group_top <= example_line[0] + SAME_LINE_TOLERANCE:
+                        owner = index
+                lines_by_group[owner].append(example_line)
+            for index, (group_top, group_lines) in enumerate(groups):
+                units.append(Block(
+                    top=top if index == 0 else group_top,
+                    headword=PdfExtractor._join_wrapped(lines=group_lines),
+                    example_lines=lines_by_group[index],
                 ))
-        return sorted(units, key=lambda unit: unit[0])
+        return sorted(units, key=lambda unit: unit.top)
+
+    @staticmethod
+    def _example_starts(*, page: ElementTree.Element, column: Column) -> typing.List[float]:
+        """Tops of the lines where an entry's examples begin: a block's first line, or a "1."."""
+        starts = []
+        for block in page.iter(XHTML_NAMESPACE + 'block'):
+            for position, line in enumerate(block.iter(XHTML_NAMESPACE + 'line')):
+                words = [
+                    (word.text or '').strip() for word in line.iter(XHTML_NAMESPACE + 'word')
+                    if column.examples_start <= float(word.get('xMin')) < column.end
+                ]
+                words = [word for word in words if word]
+                if words and (position == 0 or words[0] == FIRST_EXAMPLE_MARKER):
+                    starts.append(float(line.get('yMin')))
+        return starts
+
+    @staticmethod
+    def _group_entries(
+        *, lines: typing.List[typing.Tuple[float, str]], example_starts: typing.List[float],
+    ) -> typing.List[typing.Tuple[float, typing.List[str]]]:
+        """Split one block's headword lines into entries; the extractor sometimes merges two."""
+        groups: typing.List[typing.Tuple[float, typing.List[str]]] = []
+        for top, text in lines:
+            opens = groups and PdfExtractor._starts_entry(
+                entry=' '.join(groups[-1][1]), line=text,
+                beside_example=any(
+                    groups[-1][0] + SAME_LINE_TOLERANCE < start
+                    and top - SAME_LINE_TOLERANCE <= start <= top + LINE_HEIGHT + SAME_LINE_TOLERANCE
+                    for start in example_starts
+                ),
+            )
+            if groups and not opens:
+                groups[-1][1].append(text)
+            else:
+                groups.append((top, [text]))
+        return groups
+
+    @staticmethod
+    def _starts_entry(*, entry: str, line: str, beside_example: bool) -> bool:
+        """Whether a headword line opens a new entry rather than continuing the one above.
+
+        An entry goes on after a list mark, inside open brackets and after an auxiliary. A new one
+        starts with an article under a non-noun, or on the line where its examples start.
+        """
+        last_word = entry.rsplit(' ', 1)[-1]
+        if (
+            entry.endswith(CONTINUATION_ENDINGS) or CONTINUATION_START_PATTERN.match(line)
+            or entry.count('(') > entry.count(')') or last_word in AUXILIARIES
+        ):
+            return False
+        follower = line.split(' ', 1)[0]
+        hyphen_break = (
+            len(last_word) > 1 and last_word.endswith('-') and last_word[-2].isalpha()
+            and follower[:1].islower() and follower not in SUSPENDED_HYPHEN_WORDS
+            and not ARTICLE_START_PATTERN.match(line)
+        )
+        # A lone prefix such as "über-" is an entry of its own, not the first half of a word.
+        if hyphen_break and (' ' in entry or not beside_example):
+            return False
+        if ARTICLE_START_PATTERN.match(line):
+            return not PdfExtractor._is_feminine_pair(entry=entry, line=line)
+        if VERB_START_PATTERN.match(line) and not PdfExtractor._is_unfinished_verb(entry=entry):
+            return True
+        return beside_example
+
+    @staticmethod
+    def _is_feminine_pair(*, entry: str, line: str) -> bool:
+        """`der Lehrer, -` over `die Lehrerin, -nen` is one entry; any other noun under a noun is not."""
+        if not entry.startswith('der ') or not line.startswith('die '):
+            return False
+        masculine = PdfExtractor._fold(text=entry.split(' ', 2)[1])
+        feminine = PdfExtractor._fold(text=line.split(' ', 2)[1])
+        return feminine.startswith(masculine[:PAIR_STEM_LENGTH])
+
+    @staticmethod
+    def _fold(*, text: str) -> str:
+        return text.casefold().translate(UMLAUT_FOLDING)
+
+    @staticmethod
+    def _is_unfinished_verb(*, entry: str) -> bool:
+        """A verb whose forms have started but whose perfect (auxiliary and participle) has not."""
+        parts = entry.split(FORM_SEPARATOR)
+        if len(parts) < 2 or ARTICLE_START_PATTERN.match(entry):
+            return False
+        last = parts[-1].split()
+        return not (any(word in AUXILIARIES for word in last) and last[-1] not in AUXILIARIES)
 
     @staticmethod
     def _join_wrapped(*, lines: typing.List[str]) -> str:
@@ -283,11 +433,20 @@ class PdfExtractor:
         return joined
 
     @staticmethod
-    def _entry_at(*, positions: typing.List[float], top: float) -> int:
-        for index in range(len(positions) - 1, -1, -1):
-            if abs(positions[index] - top) <= SAME_LINE_TOLERANCE:
+    def _entry_on_line(*, positions: typing.List[float], top: float) -> typing.Optional[int]:
+        for index, position in enumerate(positions):
+            if abs(position - top) <= SAME_LINE_TOLERANCE:
                 return index
-        return len(positions) - 1
+        return None
+
+    @staticmethod
+    def _entry_at(*, positions: typing.List[float], top: float) -> typing.Optional[int]:
+        """The entry on the same line, else the last entry above: a wrapped example continues it."""
+        beside = PdfExtractor._entry_on_line(positions=positions, top=top)
+        if beside is not None:
+            return beside
+        above = [index for index, position in enumerate(positions) if position < top]
+        return above[-1] if above else None
 
     @staticmethod
     def _split_examples(*, text: str) -> typing.List[str]:
@@ -328,7 +487,8 @@ class HeadwordParser:
 
     @staticmethod
     def parse(*, headword: str) -> typing.Optional[typing.Dict[str, typing.Any]]:
-        text = CROSS_REFERENCE_PATTERN.sub('', headword).strip()
+        text = OPTIONAL_PART_PATTERN.sub('', headword)
+        text = CROSS_REFERENCE_PATTERN.sub('', text).strip()
         number = 'pl' if f'({PLURAL_ONLY_MARKER})' in text else ''
         text = PARENTHETICAL_PATTERN.sub('', text).strip()
         # An alphabet heading and a stray page number are printed in the headword column too.
@@ -357,14 +517,18 @@ class HeadwordParser:
         # A spelling or regional variant printed after a slash — Soße/Sauce, chic/schick. The
         # first is the one the deck teaches; the slash has to go either way, because a headword
         # carrying it answers to no dictionary and to no image search.
-        parsed['word'] = parsed['word'].split(VARIANT_SEPARATOR, 1)[0].strip()
+        variants = [variant.strip() for variant in parsed['word'].split(VARIANT_SEPARATOR)]
+        # "Nord-/Ostsee" shares a tail; the second variant is the one spelled out in full.
+        spelled_out = len(variants) > 1 and variants[0].endswith('-') and '-' not in variants[1]
+        parsed['word'] = variants[1] if spelled_out else variants[0]
         parsed['number'] = number
         parsed['forms'] = forms
         return parsed if parsed['word'] else None
 
     @staticmethod
     def _as_verb(*, text: str) -> typing.Optional[typing.Dict[str, typing.Any]]:
-        parts = [part.strip() for part in text.split(FORM_SEPARATOR)]
+        parts = [part.strip().rstrip('.') for part in text.split(FORM_SEPARATOR)]
+        parts = HeadwordParser._restore_missing_comma(parts=parts)
         labels = VERB_LABELS_BY_LENGTH.get(len(parts))
         if labels is None or not all(parts):
             return None
@@ -377,6 +541,19 @@ class HeadwordParser:
             'part_of_speech': 'verb',
             'forms': {label: [part] for label, part in zip(labels, parts[1:])},
         }
+
+    @staticmethod
+    def _restore_missing_comma(*, parts: typing.List[str]) -> typing.List[str]:
+        """`festnehmen nimmt fest, nahm fest, hat festgenommen`: the list dropped one comma."""
+        words = parts[0].split()
+        if len(parts) != min(VERB_LABELS_BY_LENGTH) or len(words) < 2:
+            return parts
+        if not words[0][:1].islower() or words[0] in REFLEXIVE_WORDS or words[1] in REFLEXIVE_WORDS:
+            return parts
+        # The glued present and the preterite end with the same separable particle.
+        if words[-1] != parts[1].split()[-1]:
+            return parts
+        return [words[0], ' '.join(words[1:])] + parts[1:]
 
     @staticmethod
     def _as_noun(*, text: str) -> typing.Optional[typing.Dict[str, typing.Any]]:
