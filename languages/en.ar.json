@@ -1,0 +1,13 @@
+{
+  "deck": "English vocabulary",
+  "card_templates": [
+    "recognition",
+    "context",
+    "recall"
+  ],
+  "superseded_cards": {
+    "context": "recognition"
+  },
+  "superseded_cards_note": "a word met inside a sentence has already been asked what it means, so the bare headword card stands down for it; a word with no sentence keeps it",
+  "profile_note": "the shared deck for Arabic speakers, not one person's progress: no level is finished, and the reader both reads and produces the words"
+}
