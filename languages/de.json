@@ -5,12 +5,11 @@
   "media": {
     "image_providers": [],
     "audio_providers": [
-      "wiktionary",
       "synthesis"
     ]
   },
   "image_note": "no curated picture source covers german, and a searched picture has to be looked at before it lands, so this deck's images come from the reviewed stage alone",
-  "audio_note": "the german wiktionary carries a community recording on most entries, filtered by the De- filename prefix so a neighbouring language's audio cannot arrive; anything left over is synthesised inside anki",
+  "audio_note": "wiktionary has a real recording for most entries, but it serves about ten a minute, so a full deck takes hours; synthesis covers the rest in minutes. recordings fetched before the switch stay in the manifest",
   "inflection": {
     "row_labels": {
       "present": "Präsens",
