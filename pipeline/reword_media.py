@@ -40,6 +40,9 @@ LATIN_ACCENT_TRANSLITERATION = {
     'á': 'aa', 'é': 'ee', 'í': 'ii', 'ó': 'oo', 'ú': 'uu', 'ñ': 'nn', 'ü': 'uu',
     # German has umlaut-only pairs too (schon/schön, zahlen/zählen).
     'ä': 'aa', 'ö': 'oo',
+    # French pairs differ by a grave or a circumflex alone (la/là, sur/sûr), so the two marks spell apart.
+    'à': 'aa', 'è': 'ee', 'ù': 'uu', 'ë': 'ee', 'ï': 'ii', 'ç': 'cc',
+    'â': 'ah', 'ê': 'eh', 'î': 'ih', 'ô': 'oh', 'û': 'uh',
     # Spelled out rather than dropped, which is what stripping accents does to it.
     'ß': 'ss',
 }
