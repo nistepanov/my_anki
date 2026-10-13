@@ -127,6 +127,7 @@ ITALIC_SPAN_PATTERN = re.compile(r"''.+?''")
 WHITESPACE_PATTERN = re.compile(r'\s+')
 TRAILING_DIGIT_SUFFIX_PATTERN = re.compile(r'^(\D{2,})\d+$')
 WORD_TOKEN_PATTERN = re.compile(r'[^\W\d_]+')
+NEVER_MATCHING_PATTERN = re.compile(r'(?!)(.)(.)')
 
 LookupResultT = typing.TypeVar('LookupResultT')
 
@@ -254,6 +255,24 @@ class WikitextDialect(typing.NamedTuple):
         )
 
 
+    @staticmethod
+    def french_edition(*, language: language_config.LanguageConfig) -> 'WikitextDialect':
+        return WikitextDialect(
+            language_section=re.compile(
+                r'^==\s*\{\{langue\|' + re.escape(language.code) + r'\}\}\s*==\s*$', re.MULTILINE,
+            ),
+            # Senses are hash lines; examples hang off them as "#*" and sub-senses as "##".
+            definition_line=re.compile(r'^#+(?![#:*])\s*(.*)$', re.MULTILINE),
+            # Section titles are templates named in French ({{S|nom|fr}}), not the row's vocabulary.
+            part_of_speech_heading=None,
+            # Synonyms sit in their own blocks under each part of speech, a shape neither reading
+            # here describes, so this edition contributes none and the model fills the gap.
+            related_word=NEVER_MATCHING_PATTERN,
+            synonym_template_names=frozenset(),
+            form_pointer=re.compile(r'\{\{\s*(fr-[a-z-]+-flexion)\|([^{}]*)\}\}'),
+            templates_rendering_argument=frozenset({'lien', 'l', 'w'}),
+        )
+
 # Keyed by the edition being read, which is the subdomain of its host, not by the deck's
 # language — a deck could sensibly read an edition written in some third language.
 WIKITEXT_DIALECTS = {
@@ -261,6 +280,7 @@ WIKITEXT_DIALECTS = {
     'en': WikitextDialect.english_edition,
     'de': WikitextDialect.german_edition,
     'ru': WikitextDialect.russian_edition,
+    'fr': WikitextDialect.french_edition,
 }
 
 
