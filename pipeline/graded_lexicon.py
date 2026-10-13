@@ -50,6 +50,11 @@ CEFR_LEVELS = ('a1', 'a2', 'b1', 'b2', 'c1', 'c2')
 
 # A single appearance is not evidence a level teaches the word; two texts is.
 DEFAULT_DOCUMENT_THRESHOLD = 2.0
+# How a profile file is laid out unless its config says otherwise: the Open Language Profiles CSV.
+DEFAULT_PROFILE_LAYOUT = {
+    'delimiter': ',',
+    'columns': {'headword': 'headword', 'part_of_speech': 'pos', 'level': 'CEFR'},
+}
 # Multi-word entries are phrases the deck keeps as their own headwords, not vocabulary items.
 PHRASE_MARKER = '_'
 
@@ -164,16 +169,23 @@ class ProfileSource:
         return found
 
     @classmethod
-    def load(cls, *, name: str, path: pathlib.Path) -> 'ProfileSource':
+    def load(
+        cls, *, name: str, path: pathlib.Path, layout: typing.Optional[typing.Dict[str, typing.Any]] = None,
+    ) -> 'ProfileSource':
+        """Read a profile; `layout` names the columns and tags of a file not shaped like the default."""
+        layout = {**DEFAULT_PROFILE_LAYOUT, **(layout or {})}
+        columns = layout['columns']
+        tags = layout.get('parts_of_speech', {})
         entries: typing.Dict[str, typing.Dict[str, str]] = {}
         with path.open(encoding='utf-8-sig', newline='') as stream:
-            for row in csv.DictReader(stream):
-                level = (row.get('CEFR') or '').strip().lower()
+            for row in csv.DictReader(stream, delimiter=layout['delimiter']):
+                level = (row.get(columns['level']) or '').strip().lower()
                 if level not in CEFR_LEVELS:
                     continue
-                part_of_speech = (row.get('pos') or '').strip().lower()
+                tag = (row.get(columns['part_of_speech']) or '').strip()
+                part_of_speech = tags.get(tag, tag).lower()
                 # A headword cell can hold several spelling variants side by side, each its own entry.
-                for variant in (row.get('headword') or '').split('/'):
+                for variant in (row.get(columns['headword']) or '').split('/'):
                     variant = variant.strip().lower()
                     if variant:
                         entries.setdefault(variant, {})[part_of_speech] = level
@@ -233,7 +245,9 @@ class GradedLexicon:
                 cls._download(url=settings['url'], path=path)
             source_format = GradedLexiconFormat(settings['format'])
             if source_format is GradedLexiconFormat.PROFILE:
-                sources.append(ProfileSource.load(name=settings['name'], path=path))
+                sources.append(ProfileSource.load(
+                    name=settings['name'], path=path, layout=settings.get('layout'),
+                ))
             else:
                 order = [level.lower() for level in settings.get('levels', ())]
                 sources.append(CefrlexSource.load(
