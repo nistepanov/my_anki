@@ -244,4 +244,7 @@
 .section-label, .ask, .badge-maturity {
   unicode-bidi: plaintext;
 }
+/* A speech tag no client replaced stays as bare text; hide it, keep the play button an app puts in its place. */
+.tts-fallback { font-size: 0; }
+.tts-fallback > * { font-size: 1rem; }
 .tts-fallback-button { font-size: 1.5rem; background: none; border: none; cursor: pointer; }
