@@ -21,6 +21,7 @@ from pipeline import language_config
 from pipeline import media
 from pipeline import ordering
 from pipeline import model
+from pipeline import noun_gender
 from pipeline import sense_choice
 from pipeline import translations
 from pipeline import wordlist
@@ -88,6 +89,7 @@ class DeckBuild:
         missing = [row for row in rows if row['key'] not in known]
         if missing:
             dictionaries.main_for(language=self._language, root=self._root)
+        noun_gender.main_for(language=self._language, root=self._root)
         enriched = self._read(name=ENRICHED_FILE)
         return Stage(name='dictionaries', done=len(enriched), pending=0)
 

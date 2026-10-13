@@ -160,6 +160,8 @@ class LanguageConfig:
         self.media: typing.Dict[str, typing.Any] = data.get('media', {})
         self.inflection: typing.Dict[str, typing.Any] = data.get('inflection', {})
         self.graded_lexicon: typing.List[typing.Dict[str, typing.Any]] = data.get('graded_lexicon', [])
+        # How a noun's gender is read from its dictionary entry, for a word list that lacks it.
+        self.noun_gender: typing.Dict[str, typing.Any] = data.get('noun_gender', {})
         # Which kinds of card a word gets. A deck the learner already reads has no use for the
         # ones that ask them to produce a word from its meaning, and a beginner's deck lives on
         # them, so the set belongs to the language rather than to the templates.

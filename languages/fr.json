@@ -1,0 +1,57 @@
+{
+  "deck_split": "cefr",
+  "dictionary": "wiktionary",
+  "media": {
+    "image_providers": [],
+    "audio_providers": [
+      "synthesis"
+    ]
+  },
+  "image_note": "no picture source is wanted for this deck yet; pictures can come later through the reviewed stage",
+  "audio_note": "synthesis covers a whole deck in minutes, where the wiktionary media host serves about ten recordings a minute",
+  "graded_lexicon": [
+    {
+      "name": "flelex",
+      "format": "profile",
+      "cache": "flelex_beacco.tsv",
+      "url": "https://cental.uclouvain.be/cefrlex/static/resources/fr/FleLex_TT_Beacco.tsv",
+      "layout": {
+        "delimiter": "\t",
+        "columns": {
+          "headword": "word",
+          "part_of_speech": "tag",
+          "level": "level"
+        },
+        "parts_of_speech": {
+          "NOM": "noun",
+          "VER": "verb",
+          "ADJ": "adjective",
+          "ADV": "adverb",
+          "PRO": "pronoun",
+          "INT": "interjection",
+          "PRP": "preposition",
+          "PRP:det": "preposition",
+          "KON": "conjunction",
+          "DET:ART": "article",
+          "DET:POS": "pronoun"
+        }
+      },
+      "note": "the TreeTagger build of FLELex with one stated level per word and part of speech, aligned on the Beacco reference descriptions for French; read as a profile, so its level is taken outright"
+    }
+  ],
+  "noun_gender": {
+    "noun_heading": "^===\\s*\\{\\{S\\|nom\\|fr[^}]*\\}\\}\\s*===",
+    "gender_mark": "\\{\\{(m|f)(?:\\|[^{}]*)?\\}\\}",
+    "genders": {
+      "m": "m",
+      "f": "f"
+    },
+    "articles": {
+      "m": "le",
+      "f": "la"
+    },
+    "elided_article": "l'",
+    "elision_letters": "aàâäeéèêëiîïoôöuùûüyh"
+  },
+  "noun_gender_note": "a graded lexicon gives bare headwords; the wiktionary headword line marks the gender with {{m}} or {{f}}. before a vowel or a mute h the article elides to l', and the article's colour on the card still shows the gender. an aspirated h (le héros) is not told apart"
+}
