@@ -14,6 +14,13 @@ simple words, and it translates.
 *The card above: definition from Wiktionary, examples from Tatoeba, level from the CEFR-J
 Wordlist, photo by World Wildlife on StockSnap (CC0).*
 
+## Ready-made decks
+
+Every deck this pipeline has published is on AnkiWeb:
+**[all shared decks by the author](https://ankiweb.net/shared/by-author/1484375566)**. Each one
+is built the way [Sharing a deck](#sharing-a-deck) describes, so it holds only content that may be
+passed on.
+
 ## Which languages work
 
 You pick two languages: the **target** (the one you learn) and your **native** one (the one cards
