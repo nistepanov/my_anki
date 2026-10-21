@@ -4,6 +4,16 @@ Turns a list of words you are learning into finished Anki cards. Each card gets 
 the language you learn, translations into your own language, example sentences, synonyms and
 antonyms, a verb's forms, a picture and a recording.
 
+> [!TIP]
+> **📚 Ready-made decks — no setup needed**
+>
+> | Decks | Author | Notes |
+> |---|---|---|
+> | **[All shared decks on AnkiWeb →](https://ankiweb.net/shared/by-author/1484375566)** | the author of this repo | the author studies the English and Spanish decks for Russian speakers; the rest were built for friends and are not checked. An LLM writes the simple definitions and translations, so expect some mistakes |
+>
+> Every deck holds only content that may be passed on — see [Sharing a deck](#sharing-a-deck).
+> Built your own deck with this pipeline? Open a pull request and add it to the table.
+
 <img src="docs/card-example.png" alt="The back of a finished card for 'deer'" width="360">
 
 Almost nothing on a card is invented. A published dictionary decides what a word means. A
@@ -13,13 +23,6 @@ simple words, and it translates.
 
 *The card above: definition from Wiktionary, examples from Tatoeba, level from the CEFR-J
 Wordlist, photo by World Wildlife on StockSnap (CC0).*
-
-## Ready-made decks
-
-Every deck this pipeline has published is on AnkiWeb:
-**[all shared decks by the author](https://ankiweb.net/shared/by-author/1484375566)**. Each one
-is built the way [Sharing a deck](#sharing-a-deck) describes, so it holds only content that may be
-passed on.
 
 ## Which languages work
 
