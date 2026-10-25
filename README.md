@@ -243,12 +243,13 @@ The file lands in `data/<target>/`. Anki is not needed, and your own collection 
   the model, the open CEFR lists. Anything with an unknown source is left out.
 - A picture stays only if it came from Openverse or Wikipedia under CC0, public domain, CC BY or
   CC BY-SA.
+- Words taken from a book stay out; `--with-books` keeps them.
 - No recordings go in. The card reads the word with Anki's built-in text-to-speech.
 - Every note names its sources in a `Credits` field, and the deck description states the licence:
   CC BY-SA 4.0, or CC BY-NC-SA 4.0 when a level comes from a non-commercial list.
 
 The export prints how much it left out. Expect gaps: a word whose sentences came from a
-vocabulary app or a book reaches the shared deck without examples.
+vocabulary app reaches the shared deck without examples.
 
 ## Where things live
 

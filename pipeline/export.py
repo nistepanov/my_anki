@@ -317,7 +317,7 @@ def export(
     deck_name: str,
     output: pathlib.Path,
     with_images: bool = True,
-    with_books: bool = True,
+    with_books: bool = False,
     levels: typing.Optional[typing.Collection[str]] = None,
 ) -> ExportStats:
     rows = language_config.TsvFile.read(language.data_directory(root=language_config.PROJECT_ROOT) / 'cards.tsv')
@@ -346,7 +346,7 @@ def main() -> None:
     parser.add_argument('--deck', default=None, help="Deck name in the shared file (default: '<Target> vocabulary')")
     parser.add_argument('--output', type=pathlib.Path, default=None, help="Where to write the .apkg file")
     parser.add_argument('--no-images', action='store_true', help="Leave every picture out")
-    parser.add_argument('--no-books', action='store_true', help="Leave out the words taken from books")
+    parser.add_argument('--with-books', action='store_true', help="Keep the words taken from books, which stay out by default")
     parser.add_argument('--levels', nargs='+', default=None, help="Keep only these CEFR levels, e.g. A1 A2 B1")
     language_config.add_language_arguments(parser)
     arguments = parser.parse_args()
@@ -360,7 +360,7 @@ def main() -> None:
         deck_name=deck_name,
         output=output,
         with_images=not arguments.no_images,
-        with_books=not arguments.no_books,
+        with_books=arguments.with_books,
         levels=arguments.levels,
     )
     print(f"wrote {output} — {stats.notes} notes, {stats.images_kept} pictures")
