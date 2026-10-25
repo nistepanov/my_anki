@@ -172,7 +172,8 @@ python -m pipeline.book_import rows  --target en --directory data/en/book_80_day
 ```
 
 It keeps only the words the frequency table says you do not know yet, each on a phrase from the
-book. This one is English-only for now — see [Adding a language](#adding-a-language).
+book. `--epub` also takes a plain-text file, so a PDF works after `pdftotext book.pdf book.txt`.
+This one is English-only for now — see [Adding a language](#adding-a-language).
 
 ## What a card holds
 

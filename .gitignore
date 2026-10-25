@@ -5,6 +5,8 @@
 # Raw imports: a vocabulary app's SQLite backup, an ebook. Large, and not ours to publish.
 *.backup
 /sources/*.epub
+/sources/*.pdf
+/sources/*.txt
 
 # Local answers to the model-backed stages, and the log the cron script writes.
 /enrich.log

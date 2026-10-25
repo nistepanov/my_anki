@@ -62,6 +62,8 @@ class Book:
 
     @classmethod
     def read(cls, *, path: pathlib.Path) -> 'Book':
+        if path.suffix == '.txt':
+            return cls.read_text(path=path)
         archive = zipfile.ZipFile(path)
         documents = sorted(name for name in archive.namelist() if name.endswith(('.html', '.xhtml', '.htm')))
         sentences = []
@@ -70,6 +72,12 @@ class Book:
             for paragraph in PARAGRAPH_PATTERN.findall(SCRIPT_PATTERN.sub(' ', markup)):
                 sentences.extend(cls._sentences(markup=paragraph))
         return cls(sentences=sentences)
+
+    @classmethod
+    def read_text(cls, *, path: pathlib.Path) -> 'Book':
+        """A plain-text book, such as one taken out of a PDF, where blank lines end a paragraph."""
+        paragraphs = re.split(r'\n\s*\n', path.read_text(encoding='utf-8'))
+        return cls(sentences=[sentence for paragraph in paragraphs for sentence in cls._sentences(markup=html.escape(paragraph))])
 
     @staticmethod
     def _sentences(*, markup: str) -> typing.List[str]:
@@ -305,7 +313,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('stage', choices=('tasks', 'rows'), help="Write the model's task files, or read its answers")
     parser.add_argument('--directory', required=True, type=pathlib.Path, help="Where the task and answer files live")
-    parser.add_argument('--epub', type=pathlib.Path, help="The book, for the task stage")
+    parser.add_argument('--epub', type=pathlib.Path, help="The book as an epub or a plain-text file, for the task stage")
     parser.add_argument('--subdeck', help="Subdeck the book's words land in, for the row stage")
     language_config.add_language_arguments(parser)
     arguments = parser.parse_args()
