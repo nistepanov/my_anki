@@ -136,10 +136,6 @@ python -m pipeline.llm data/en/llm --model claude-sonnet-5   # through the API
 or by writing the `answer-NN.json` files yourself, which is what an agent session does. `enrich.sh`
 takes a lock, logs, and never touches Anki — publishing a deck stays a person's decision.
 
-One warning that has bitten here: **clear a stage's task directory before planning a new round.**
-The merge step reads every answer file it finds, so answers to a question no longer being asked
-get applied again, and the correction you were making is silently reverted.
-
 ### Starting from a published word list
 
 Some languages have an official list published by an exam board, and it beats anything you would
@@ -350,10 +346,8 @@ python -m pipeline.model --target en --from-json data/en/llm     # merge the ans
 | `pipeline.senses` | the headword's other meanings | `data/en/senses` |
 | `pipeline.primary_sense` | whether a card teaches the sense met first | `data/en/primary_sense` |
 
-**Empty a task directory before planning a new round.** The merge reads every answer file it finds,
-so answers to a question no longer being asked get applied again — and the correction you were
-making is what gets reverted. Numbering does not save you: a smaller second round leaves the
-higher-numbered files of the first one in place and they merge alongside the new ones.
+Each `--plan` starts a new round: it moves the previous round's task and answer files into a
+dated `done-…` subdirectory, so an old answer cannot merge again and undo a newer one.
 
 `pipeline.llm` takes a directory, not a `--target`. `--batch` submits everything as one batch at
 half price, answered whenever the service gets to it; without it, questions go chunk by chunk and

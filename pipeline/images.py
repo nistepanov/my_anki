@@ -29,7 +29,7 @@ import urllib.parse
 from . import reword_media
 from . import media
 from . import language_config
-from . import tasks
+from . import task_files
 
 CARDS_FILENAME = 'cards.tsv'
 MANIFEST_FILENAME = 'media.tsv'
@@ -106,7 +106,7 @@ age and image quality are not grounds for rejection — only what the picture sh
 Before finishing, check with Python that the file parses, every `key` matches your task file
 verbatim, every row is answered, and `keep` is a boolean everywhere. Report how many you kept and
 how many you rejected.
-""" + tasks.INCREMENTAL_SAVING
+""" + task_files.INCREMENTAL_SAVING
 
 QUERY_INSTRUCTIONS_TEMPLATE = """# Writing photo-search queries
 
@@ -146,7 +146,7 @@ archive is not a stock library and those terms only narrow it to nothing.
 Before finishing, check with Python that the file parses, every `key` matches your task file
 verbatim, every row is answered, and no query is empty or longer than four words. Report those
 counts.
-""" + tasks.INCREMENTAL_SAVING
+""" + task_files.INCREMENTAL_SAVING
 
 INSTRUCTIONS_TEMPLATE = """# Choosing card pictures
 
@@ -187,7 +187,7 @@ a perfectly good answer. Do not stretch to fill every row.
 Before finishing, check with Python that the file parses, every `key` matches your task file,
 every `choice` is either `0` or a `number` that exists for that key, and that you answered every
 row. Report those counts.
-""" + tasks.INCREMENTAL_SAVING
+""" + task_files.INCREMENTAL_SAVING
 
 
 class CandidateFetcher:
@@ -379,16 +379,7 @@ class ReviewTasks:
     @staticmethod
     def write(*, tasks: typing.List[dict], directory: pathlib.Path, slices: int,
               instructions: str) -> typing.List[pathlib.Path]:
-        directory.mkdir(parents=True, exist_ok=True)
-        size = -(-len(tasks) // slices) if tasks else 0
-        written = []
-        for index in range(slices):
-            chunk = tasks[index * size:(index + 1) * size] if size else []
-            if not chunk:
-                continue
-            path = directory / f'task-{index + 1:02d}{ANSWER_SUFFIX}'
-            path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, indent=1), encoding='utf-8')
-            written.append(path)
+        written = task_files.write(rows=tasks, directory=directory, slices=slices)
         (directory / INSTRUCTIONS_FILE).write_text(instructions, encoding='utf-8')
         return written
 

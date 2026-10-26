@@ -23,7 +23,7 @@ import typing
 
 from . import dictionaries
 from . import language_config
-from . import tasks
+from . import task_files
 
 WORDS_FILENAME = 'words.tsv'
 CARDS_FILENAME = 'cards.tsv'
@@ -61,7 +61,7 @@ One row per task row. `sense` is the number of the chosen sense, never outside t
 
 Before finishing, check with Python that the file parses, every `key` belongs to your task file,
 every task row is answered once, and every `sense` is within its row's list. Report those counts.
-""" + tasks.INCREMENTAL_SAVING
+""" + task_files.INCREMENTAL_SAVING
 
 
 class SenseChoice:
@@ -139,16 +139,7 @@ class TaskFiles:
         *, tasks_to_write: typing.List[dict], directory: pathlib.Path, slices: int,
         language: language_config.LanguageConfig,
     ) -> typing.List[pathlib.Path]:
-        directory.mkdir(parents=True, exist_ok=True)
-        size = -(-len(tasks_to_write) // slices) if tasks_to_write else 0
-        written = []
-        for index in range(slices):
-            chunk = tasks_to_write[index * size:(index + 1) * size] if size else []
-            if not chunk:
-                continue
-            path = directory / f'{TASK_PREFIX}{index + 1:02d}.json'
-            path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-            written.append(path)
+        written = task_files.write(rows=tasks_to_write, directory=directory, slices=slices, compact=True)
         (directory / INSTRUCTIONS_FILE).write_text(
             INSTRUCTIONS_TEMPLATE.format(
                 target=language.target_name,

@@ -25,7 +25,7 @@ import typing
 from . import dictionaries
 from . import language_config
 from . import senses
-from . import tasks
+from . import task_files
 
 CARDS_FILENAME = 'cards.tsv'
 TASK_DIRECTORY = 'primary_sense'
@@ -90,7 +90,7 @@ dictionary simply lacks the common meaning — answer `keep` and add `"why": "<s
 Before finishing, check with Python that the file parses, every `key` matches your task file
 verbatim, every row is answered, and every `replace` row carries a non-empty `definition` and
 `translation`. Report how many you kept and how many you replaced.
-""" + tasks.INCREMENTAL_SAVING
+""" + task_files.INCREMENTAL_SAVING
 
 
 class PrimarySensePlan:
@@ -168,16 +168,7 @@ class TaskFiles:
         slices: int,
         language: language_config.LanguageConfig,
     ) -> typing.List[pathlib.Path]:
-        directory.mkdir(parents=True, exist_ok=True)
-        size = -(-len(tasks) // slices) if tasks else 0
-        written = []
-        for index in range(slices):
-            chunk = tasks[index * size:(index + 1) * size] if size else []
-            if not chunk:
-                continue
-            path = directory / f'task-{index + 1:02d}{ANSWER_SUFFIX}'
-            path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, indent=1), encoding='utf-8')
-            written.append(path)
+        written = task_files.write(rows=tasks, directory=directory, slices=slices)
         (directory / INSTRUCTIONS_FILE).write_text(
             INSTRUCTIONS_TEMPLATE.format(target=language.target_name, native=language.native_name),
             encoding='utf-8',

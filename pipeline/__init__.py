@@ -31,7 +31,7 @@ from . import reword_media
 from . import sense_choice
 from . import sense_pruning
 from . import senses
-from . import tasks
+from . import task_files
 from . import transcription
 from . import translations
 from . import wordlist
@@ -63,7 +63,7 @@ __all__ = [
     'sense_choice',
     'sense_pruning',
     'senses',
-    'tasks',
+    'task_files',
     'transcription',
     'translations',
     'wordlist',

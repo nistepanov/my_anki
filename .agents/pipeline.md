@@ -64,6 +64,12 @@ what is already there for the parts it says nothing about. And a stage decides w
 by reading the table, never by reading its own answer files — those are rotated as the work is
 resliced, so a question already answered looks unanswered and gets asked again.
 
+Planning a new round moves the previous round's task and answer files into a dated subdirectory.
+The merge reads every answer file it finds at the top level, so an answer left from an old round
+would merge again and quietly undo a newer one. The rule used to be "empty the directory first",
+and a rule that depends on memory fails. A stage whose answers are its record of finished work
+still reads the archives, with the current round read last so that its answer wins.
+
 **A failure of one word never aborts the run.** Dead dictionary entries and refused model batches
 are recorded and skipped. Coverage is reported as a count at the end, so gaps are visible rather
 than silent.

@@ -21,7 +21,7 @@ import typing
 
 from . import dictionaries
 from . import language_config
-from . import tasks
+from . import task_files
 
 CARDS_FILENAME = 'cards.tsv'
 TASK_DIRECTORY = 'senses'
@@ -84,7 +84,7 @@ card splits the list on, and one inside a field would cut it in two.
 
 Before finishing, check with Python that the file parses, every `key` belongs to your task file,
 no row's `senses` exceeds four entries, and no field contains a bar. Report those counts.
-""" + tasks.INCREMENTAL_SAVING
+""" + task_files.INCREMENTAL_SAVING
 
 
 class SensePlan:
@@ -172,16 +172,7 @@ class TaskFiles:
     def write(
         *, tasks: typing.List[dict], directory: pathlib.Path, slices: int, language: language_config.LanguageConfig,
     ) -> typing.List[pathlib.Path]:
-        directory.mkdir(parents=True, exist_ok=True)
-        size = -(-len(tasks) // slices) if tasks else 0
-        written = []
-        for index in range(slices):
-            chunk = tasks[index * size:(index + 1) * size] if size else []
-            if not chunk:
-                continue
-            path = directory / f'task-{index + 1:02d}{ANSWER_SUFFIX}'
-            path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, indent=1), encoding='utf-8')
-            written.append(path)
+        written = task_files.write(rows=tasks, directory=directory, slices=slices)
         (directory / INSTRUCTIONS_FILE).write_text(
             INSTRUCTIONS_TEMPLATE.format(
                 target=language.target_name, native=language.native_name,

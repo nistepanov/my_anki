@@ -21,7 +21,7 @@ import typing
 
 from . import graded_lexicon
 from . import language_config
-from . import tasks
+from . import task_files
 
 MODEL = 'claude-sonnet-5'
 BATCH_SIZE = 20
@@ -101,7 +101,7 @@ plausible value.
 Before finishing, check with Python that the file parses, every `id` appears in the task file,
 every `cefr` you gave is one of {cefr_levels}, every `is_object` is a real boolean, and no row carries a field
 its `needs` list did not ask for. Report those counts.
-""" + tasks.INCREMENTAL_SAVING
+""" + task_files.INCREMENTAL_SAVING
 
 ENRICHMENT_SCHEMA = {
     'type': 'object',
@@ -149,7 +149,11 @@ class AnswerFiles:
     @staticmethod
     def load(*, directory: pathlib.Path) -> typing.Dict[str, dict]:
         answers: typing.Dict[str, dict] = {}
-        for path in sorted(directory.glob('*.json')):
+        # Planning moves each finished round into a subdirectory. Those answers still count, but
+        # the current round is read last so that its answer wins.
+        archived = sorted(directory.glob(f'{task_files.ARCHIVE_PREFIX}*/*.json'))
+        current = sorted(directory.glob('*.json'))
+        for path in (*archived, *current):
             # The answers usually sit beside the task files they answer, and a task row carries
             # the same id as its answer with none of the fields — read as an answer it would
             # blank the row it was asking about.
@@ -409,17 +413,7 @@ class TaskFiles:
 
     @staticmethod
     def write(*, payloads: typing.List[dict], directory: pathlib.Path, slices: int) -> typing.List[pathlib.Path]:
-        directory.mkdir(parents=True, exist_ok=True)
-        size = -(-len(payloads) // slices) if payloads else 0
-        written = []
-        for index in range(slices):
-            chunk = payloads[index * size:(index + 1) * size] if size else []
-            if not chunk:
-                continue
-            path = directory / f'{TASK_PREFIX}{index + 1:02d}.json'
-            path.write_text(json.dumps({'rows': chunk}, ensure_ascii=False, indent=1), encoding='utf-8')
-            written.append(path)
-        return written
+        return task_files.write(rows=payloads, directory=directory, slices=slices)
 
     @staticmethod
     def write_instructions(*, directory: pathlib.Path, language: language_config.LanguageConfig) -> pathlib.Path:
