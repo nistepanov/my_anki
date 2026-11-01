@@ -19,6 +19,7 @@ rather than stripped of it, so the tag can drop the word instead of teaching it 
 
 import argparse
 import bisect
+import collections
 import concurrent.futures
 import enum
 import functools
@@ -1077,14 +1078,18 @@ class TatoebaClient:
 
     @staticmethod
     def fetch_one(
-        *, lemma: str, cache: Cache, language: language_config.LanguageConfig,
+        *,
+        lemma: str,
+        parts_of_speech: typing.AbstractSet[str],
+        cache: Cache,
+        language: language_config.LanguageConfig,
     ) -> typing.Tuple[FetchStatus, typing.List[TatoebaExample]]:
         cached = cache.load(source=Source.TATOEBA, lemma=lemma)
         if cached is not None:
             if not cached.get('found'):
                 return FetchStatus.NOT_FOUND, []
             return FetchStatus.FOUND, TatoebaClient._select(
-                lemma=lemma, results=cached.get('results', []), language=language,
+                lemma=lemma, parts_of_speech=parts_of_speech, results=cached.get('results', []), language=language,
             )
 
         result = HttpClient.get(url=TatoebaClient._build_url(lemma=lemma, language=language))
@@ -1097,7 +1102,9 @@ class TatoebaClient:
         body = json.loads(result.payload)
         results = body.get('results') or []
         cache.store(source=Source.TATOEBA, lemma=lemma, payload={'found': True, 'results': results})
-        return FetchStatus.FOUND, TatoebaClient._select(lemma=lemma, results=results, language=language)
+        return FetchStatus.FOUND, TatoebaClient._select(
+            lemma=lemma, parts_of_speech=parts_of_speech, results=results, language=language,
+        )
 
     @staticmethod
     def _build_url(*, lemma: str, language: language_config.LanguageConfig) -> str:
@@ -1109,12 +1116,17 @@ class TatoebaClient:
 
     @staticmethod
     def _select(
-        *, lemma: str, results: typing.List[dict], language: language_config.LanguageConfig,
+        *,
+        lemma: str,
+        parts_of_speech: typing.AbstractSet[str],
+        results: typing.List[dict],
+        language: language_config.LanguageConfig,
     ) -> typing.List[TatoebaExample]:
+        forms = TatoebaClient._word_forms(lemma=lemma, parts_of_speech=parts_of_speech, language=language)
         candidates = []
         for result in results:
             text = (result.get('text') or '').strip()
-            if not TatoebaClient._is_relevant(lemma=lemma, text=text):
+            if not TatoebaClient._is_relevant(lemma=lemma, text=text, forms=forms):
                 continue
             word_count = len(text.split())
             if not (TATOEBA_MIN_WORDS <= word_count <= TATOEBA_MAX_WORDS):
@@ -1148,8 +1160,36 @@ class TatoebaClient:
         return native_text, pivot_text
 
     @staticmethod
-    def _is_relevant(*, lemma: str, text: str) -> bool:
-        """Tatoeba's search is stemmed and fuzzy; keep only sentences containing a plausibly related word."""
+    def _word_forms(
+        *, lemma: str, parts_of_speech: typing.AbstractSet[str], language: language_config.LanguageConfig,
+    ) -> typing.Optional[typing.FrozenSet[str]]:
+        """The accent-free forms a sentence may use, or None when the language or word has no rules."""
+        rules = language.example_word_forms
+        words = lemma.split()
+        if len(words) != 1 or not parts_of_speech or not parts_of_speech <= rules.keys():
+            return None
+        folded_lemma = TatoebaClient._fold(text=lemma)
+        forms = set()
+        for part_of_speech in parts_of_speech:
+            part_forms = TatoebaClient._forms_for_part(lemma=folded_lemma, rules=rules[part_of_speech])
+            if not part_forms:
+                return None
+            forms |= part_forms
+        return frozenset(forms)
+
+    @staticmethod
+    def _forms_for_part(*, lemma: str, rules: typing.Dict[str, typing.List[str]]) -> typing.Set[str]:
+        forms = set()
+        for dropped, endings in rules.items():
+            if not lemma.endswith(dropped):
+                continue
+            stem = lemma[:len(lemma) - len(dropped)]
+            forms.update(stem + ending.replace('+', stem[-1:]) for ending in endings)
+        return forms
+
+    @staticmethod
+    def _is_relevant(*, lemma: str, text: str, forms: typing.Optional[typing.FrozenSet[str]] = None) -> bool:
+        """Tatoeba's search is stemmed and fuzzy; keep only sentences containing a form of the word."""
         folded_lemma = TatoebaClient._fold(text=TatoebaClient._relevance_lemma(lemma=lemma))
         for index, match in enumerate(WORD_TOKEN_PATTERN.finditer(text)):
             token = match.group(0)
@@ -1158,7 +1198,12 @@ class TatoebaClient:
             # match loose enough to admit real conjugations can't otherwise tell the two apart.
             if index > 0 and token[:1].isupper():
                 continue
-            if TatoebaClient._word_matches_lemma(word=TatoebaClient._fold(text=token), lemma=folded_lemma):
+            word = TatoebaClient._fold(text=token)
+            if forms is None:
+                if TatoebaClient._word_matches_lemma(word=word, lemma=folded_lemma):
+                    return True
+            # An accent can make another word: "ópera" is an opera, "opera" is a form of "operar".
+            elif word in forms and (word != folded_lemma or token.lower() == lemma.lower() or lemma == folded_lemma):
                 return True
         return False
 
@@ -1548,10 +1593,16 @@ def main_for(
     )
     target_examples_column = language.examples_column(suffix=language.target)
     tatoeba_lemmas = [lemma for lemma, row in zip(lemma_by_row, rows) if not row[target_examples_column]]
+    # Cards that share a spelling share one search, so its filter must allow the forms of all of them.
+    parts_of_speech_by_lemma = collections.defaultdict(set)
+    for lemma, row in zip(lemma_by_row, rows):
+        parts_of_speech_by_lemma[lemma].update(row['part_of_speech'].split())
     tatoeba_by_lemma = Pipeline.fetch_many(
         lemmas=tatoeba_lemmas,
         max_workers=TATOEBA_MAX_WORKERS,
-        fetch_one=lambda lemma: TatoebaClient.fetch_one(lemma=lemma, cache=cache, language=language),
+        fetch_one=lambda lemma: TatoebaClient.fetch_one(
+            lemma=lemma, parts_of_speech=parts_of_speech_by_lemma[lemma], cache=cache, language=language,
+        ),
         source=Source.TATOEBA,
         stats=stats,
     )

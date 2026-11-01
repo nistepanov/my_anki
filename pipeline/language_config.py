@@ -183,6 +183,10 @@ class LanguageConfig:
         self._grammar_words: typing.Sequence[str] = data.get('grammar_words', ())
         self._filler_words: typing.Sequence[str] = data.get('filler_words', ())
         self._inflection_endings: typing.Sequence[typing.Sequence[str]] = data.get('inflection_endings', ())
+        # Per part of speech: letters dropped from a word's end, then the endings that may replace them.
+        self.example_word_forms: typing.Dict[str, typing.Dict[str, typing.List[str]]] = data.get(
+            'example_word_forms', {},
+        )
         self._frequent_word_count: int = int(data.get('frequent_word_count', DEFAULT_FREQUENT_WORD_COUNT))
         self.wikipedia_host: str = data.get('wikipedia_host', '')
         self.deck_split: typing.Optional[str] = data.get('deck_split')

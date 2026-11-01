@@ -253,5 +253,70 @@
     "other",
     "such"
   ],
-  "filler_words_note": "words every english definition reaches for, so two definitions sharing only these share no meaning. leans on general vocabulary a sentence does not, which is why it is its own list"
+  "filler_words_note": "words every english definition reaches for, so two definitions sharing only these share no meaning. leans on general vocabulary a sentence does not, which is why it is its own list",
+  "example_word_forms": {
+    "noun": {
+      "": [
+        "",
+        "s",
+        "es"
+      ],
+      "y": [
+        "ies"
+      ],
+      "f": [
+        "ves"
+      ],
+      "fe": [
+        "ves"
+      ],
+      "man": [
+        "men"
+      ],
+      "s": [
+        ""
+      ],
+      "es": [
+        ""
+      ]
+    },
+    "adjective": {
+      "": [
+        "",
+        "r",
+        "er",
+        "st",
+        "est",
+        "+er",
+        "+est"
+      ],
+      "y": [
+        "ier",
+        "iest"
+      ]
+    },
+    "verb": {
+      "": [
+        "",
+        "s",
+        "es",
+        "d",
+        "ed",
+        "ing",
+        "+ed",
+        "+ing"
+      ],
+      "e": [
+        "ing"
+      ],
+      "y": [
+        "ies",
+        "ied"
+      ],
+      "ie": [
+        "ying"
+      ]
+    }
+  },
+  "example_word_forms_note": "the forms a sentence may use for a word, per part of speech: letters to drop from the end of the word, then the endings to add, with accents removed; + repeats the last letter"
 }
