@@ -14,15 +14,15 @@ antonyms, a verb's forms, a picture and a recording.
 > Every deck holds only content that may be passed on — see [Sharing a deck](#sharing-a-deck).
 > Built your own deck with this pipeline? Open a pull request and add it to the table.
 
-<img src="docs/card-example.png" alt="The back of a finished card for 'deer'" width="360">
+<img src="docs/card-example.png" alt="The back of a finished card for 'doughnut'" width="360">
 
 Almost nothing on a card is invented. A published dictionary decides what a word means. A
 published graded word list decides how hard it is. A frequency table decides which words you see
 first. A language model does only what no dictionary publishes: it rewrites a hard definition in
 simple words, and it translates.
 
-*The card above: definition from Wiktionary, examples from Tatoeba, level from the CEFR-J
-Wordlist, photo by World Wildlife on StockSnap (CC0).*
+*The card above: definition from Wiktionary, examples from Tatoeba, photo by Foodie Girl on
+StockSnap (CC0).*
 
 ## Which languages work
 
@@ -197,10 +197,10 @@ free. Inside one level the order is by frequency, because a level holds well ove
 and the order inside it decides most of what you actually see. Levels you have finished can be
 named in the config; their cards are suspended rather than deleted and move to a deck of their own.
 
-<img src="docs/card-example.png" alt="The back of a recognition card for 'cottage'" width="360">
+<img src="docs/card-example.png" alt="The back of a recognition card for 'doughnut'" width="360">
 
-The back of a recognition card, as `pipeline.preview` renders it. The photograph is CC0, by Markus
-Spiske on StockSnap.
+The back of a recognition card, as `pipeline.preview` renders it. The photograph is CC0, by Foodie
+Girl on StockSnap.
 
 To see a card without opening Anki:
 
